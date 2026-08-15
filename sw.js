@@ -35,6 +35,20 @@ self.addEventListener('activate', event => {
   );
 });
 
+// How long to wait for the network before falling back to the cached game.
+// Short enough that a weak signal doesn't stall the launch, long enough that
+// a normal connection wins the race and serves the newest build. // TUNABLE
+const NETWORK_TIMEOUT_MS = 2500;
+
+// Is this a request for the game itself (as opposed to an icon or a font)?
+// Those are the only things that change between deploys, so they're the only
+// ones worth going to the network for.
+function isAppShell(req, url){
+  if(req.mode === 'navigate') return true;
+  const path = url.pathname;
+  return path.endsWith('/') || path.endsWith('/index.html');
+}
+
 self.addEventListener('fetch', event => {
   const req = event.request;
   if(req.method !== 'GET') return;
@@ -43,10 +57,17 @@ self.addEventListener('fetch', event => {
   const isFont = url.hostname === 'fonts.googleapis.com' || url.hostname === 'fonts.gstatic.com';
   if(url.origin !== self.location.origin && !isFont) return;
 
-  // Cache-first: this is a game, not a news site — instant offline launches
-  // matter more than picking up a redeploy the moment it lands. A new deploy
-  // changes CACHE_VERSION, so the next launch installs the new worker and the
-  // one after that runs the new build.
+  if(isAppShell(req, url)){
+    // Network-first for the game file: during active playtesting, seeing a
+    // fresh deploy on the very next launch matters more than shaving a beat
+    // off startup. If the network is slow or gone, the cached copy is served
+    // instead, so offline play is unaffected.
+    event.respondWith(networkFirst(req));
+    return;
+  }
+
+  // Cache-first for everything else — icons, manifest and fonts don't change
+  // between deploys, so there's nothing to gain by re-fetching them.
   event.respondWith(
     caches.match(req).then(hit => {
       if(hit) return hit;
@@ -59,11 +80,33 @@ self.addEventListener('fetch', event => {
         }
         return res;
       }).catch(() => {
-        // Offline and uncached: fall back to the app shell for navigations so
-        // a cold launch still opens the game rather than a browser error page.
         if(req.mode === 'navigate') return caches.match('./index.html');
         return Response.error();
       });
     })
   );
 });
+
+async function networkFirst(req){
+  const cached = await caches.match(req) || await caches.match('./index.html');
+
+  let timer;
+  const timeout = new Promise(resolve => { timer = setTimeout(() => resolve(null), NETWORK_TIMEOUT_MS); });
+
+  try{
+    // Whichever resolves first wins: a real response, or the timeout handing
+    // back null so we can fall through to the cache.
+    const res = await Promise.race([fetch(req), timeout]);
+    clearTimeout(timer);
+    if(res && res.ok){
+      // Refresh the stored copy so the next offline launch gets this build.
+      const copy = res.clone();
+      caches.open(CACHE_NAME).then(cache => cache.put('./index.html', copy)).catch(() => {});
+      return res;
+    }
+  }catch(e){
+    clearTimeout(timer);
+  }
+
+  return cached || Response.error();
+}
