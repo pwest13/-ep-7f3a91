@@ -182,6 +182,34 @@
   }
   .gem-balance-pop{ animation: gemBalancePop .26s ease; }
 
+  /* ===== Shop purchase: the bought card flies into the Team nav button =====
+     Points the player at where the new Evopal actually went, rather than
+     leaving a purchase with no visible destination. */
+  .card-fly-layer{ position:fixed; z-index:76; overflow:hidden; pointer-events:none; }
+  .card-fly-piece{
+    position:absolute; width:58px; height:58px; margin:-29px 0 0 -29px;
+    display:flex; align-items:center; justify-content:center;
+    background:var(--surface); border:3px solid var(--ink); border-radius:13px;
+    box-shadow:0 6px 16px rgba(0,0,0,.35);
+    animation-name:card-fly; animation-fill-mode:forwards; animation-timing-function:cubic-bezier(.45,.05,.55,1);
+  }
+  /* Pops up off the shelf first, then arcs down into the nav and shrinks
+     into the button — the lift makes the destination read clearly instead
+     of the card just sliding sideways off the tile. */
+  @keyframes card-fly{
+    0%{ transform:translate(0,0) scale(.75) rotate(0deg); opacity:0; }
+    14%{ transform:translate(0,-18px) scale(1.12) rotate(-7deg); opacity:1; }
+    34%{ transform:translate(var(--arc-x), var(--arc-y)) scale(1) rotate(5deg); opacity:1; }
+    86%{ transform:translate(var(--end-x), var(--end-y)) scale(.4) rotate(0deg); opacity:1; }
+    100%{ transform:translate(var(--end-x), var(--end-y)) scale(.16) rotate(0deg); opacity:0; }
+  }
+  .nav-card-pop{ animation:navCardPop .32s cubic-bezier(.34,1.56,.64,1); }
+  @keyframes navCardPop{
+    0%{ transform:scale(1); }
+    45%{ transform:scale(1.24); }
+    100%{ transform:scale(1); }
+  }
+
   /* ===== Defeat: slow fade to black + tip screen ===== */
   .defeat-layer{
     position:fixed; z-index:95; background:#000; opacity:0;
@@ -554,7 +582,12 @@ const CONFIG = {
   catchBaseFloor: 0.08,        // TUNABLE: minimum catch chance
   catchHpWeight: 0.35,         // TUNABLE: how much clean-win HP% boosts catch chance
   maxCatchAttempts: 3,
-  premiumCostRetry: 20,        // mock Gems cost per re-attempt
+  // TUNABLE: Gem cost of each catch attempt in order — the first is free,
+  // and each retry after that costs more, so a stubborn Evopal gets
+  // progressively more expensive rather than being a flat-rate grind.
+  // Indexed by how many attempts have already been used this encounter;
+  // should have one entry per maxCatchAttempts.
+  catchAttemptCosts: [0, 20, 40],
   maxCreatureLevel: 100,       // TUNABLE: level cap for the permanent duplicate-leveling system
   evolvedTierMinLevel: 8,      // TUNABLE: regular battle nodes at/above this level can roll an evolved-tier wild creature (below this, only the boss can). Raised from 4 so most of World 1 stays base-tier-only; World 2's later nodes (9-13) still qualify.
   evolvedTierSpawnWeight: 0.15, // TUNABLE: relative weight of evolved-tier vs base-tier when both are eligible — keeps them rare, not equally likely
@@ -860,6 +893,13 @@ const ITEMS = {
 // enemy levels scale up, via buildWorld1Stage() and world1NodeLevel() below.
 // x values are percentages across the map width; kept within 28–72 so nodes
 // (and their labels) never clip the screen edges.
+// TUNABLE: pins a specific species as a given stage's boss, instead of
+// leaving it to the normal element/tier roll. The boss node's element is
+// derived from the pinned species so the type-matchup readout still lines up
+// with what actually shows up.
+const WORLD1_BOSS_SPECIES_OVERRIDE = {
+  2: 'cinderkit', // Stage 1-2's boss is always Scorch
+};
 function buildWorld1Stage(stageNum){
   // Node-type templates per stage length (6,7,8,9,10 nodes), reusing only the
   // node types World 1 already has. The 6-node template reproduces the
@@ -887,7 +927,11 @@ function buildWorld1Stage(stageNum){
   let battleI = 0;
   let xToggle = true; // 32 first — matches the original stage's exact x sequence
   return types.map(type => {
-    if(type === 'boss') return { type, element: bossElement, x:50 };
+    if(type === 'boss'){
+      const pinned = WORLD1_BOSS_SPECIES_OVERRIDE[stageNum];
+      if(pinned) return { type, element: SPECIES[pinned].element, x:50, forceSpecies: pinned };
+      return { type, element: bossElement, x:50 };
+    }
     const x = xToggle ? 32 : 68;
     xToggle = !xToggle;
     if(type === 'battle'){
@@ -926,7 +970,7 @@ const WORLD1_STAGE_LEVEL_RANGE = {
 // together) — pinning it here instead decouples the two, so the boss can
 // sit meaningfully above the regular encounters without also dragging
 // those up.
-const WORLD1_BOSS_LEVEL_OVERRIDE = { 1: 5, 2: 12 }; // final boss level (already includes CONFIG.bossLevelBonus)
+const WORLD1_BOSS_LEVEL_OVERRIDE = { 1: 5, 2: 6 }; // final boss level (already includes CONFIG.bossLevelBonus)
 function world1NodeLevel(stageNum, nodeIndex){
   const stageNodes = WORLD1_STAGES[stageNum - 1];
   const isBossNode = stageNodes && stageNodes[nodeIndex] && stageNodes[nodeIndex].type === 'boss';
@@ -2026,10 +2070,12 @@ function queuePlayerAction(action){
   if(action.kind === 'skill' && skillEnergy(activePlayer(), action.skill) <= 0) return;
   battle.turnLock = true;
   battle.menu = 'main';
-  // Items always resolve before the enemy's move, regardless of speed —
-  // matches standard RPG conventions (using a potion shouldn't risk getting
-  // hit first just because the enemy is faster).
-  const pFirst = action.kind === 'item' ? true : playerSpeed() >= enemySpeed();
+  // Items and switches always resolve before the enemy's move, regardless of
+  // speed. For items this matches standard RPG convention (using a potion
+  // shouldn't risk getting hit first just because the enemy is faster); for
+  // switches it's what makes switching usable at all — the swap completes and
+  // the enemy then acts against whoever is now on the field.
+  const pFirst = (action.kind === 'item' || action.kind === 'switch') ? true : playerSpeed() >= enemySpeed();
   // Capture *which creature* queued this action, by reference. If the enemy acts
   // first and knocks this exact creature out, its queued action must not silently
   // execute using whatever creature got auto-switched in afterward.
@@ -2072,7 +2118,16 @@ function runBeat(beats, idx){
   // before the screen transitions to whatever comes next — otherwise the
   // normal 550ms turn-resolution delay would cut it off mid-collapse.
   const justFainted = battle.hitEvents.length && battle.hitEvents[0].defenderFainted;
-  const resolveDelay = justFainted ? 1900 : 550;
+  // A manual switch sets justSwitchedIn, which renderBattle() consumes to play
+  // the 1s spawn-in. Captured here, before the render below, so this beat can
+  // hold the enemy's reply until the incoming creature is actually on the
+  // field rather than hitting it mid-materialize. (The auto-switch after a KO
+  // sets the same flag inside the timeout — that path is already covered by
+  // the longer justFainted delay.)
+  const justSwitched = !!battle.justSwitchedIn;
+  // Short enough that the swap feels responsive, long enough for the "Go, X!"
+  // line to register before the creature animates in. // TUNABLE
+  const resolveDelay = justFainted ? 1900 : (justSwitched ? 350 : 550);
 
   setTimeout(() => {
     battle.menu = 'main';
@@ -2088,7 +2143,11 @@ function runBeat(beats, idx){
     }
 
     render();
-    if(idx + 1 < beats.length) setTimeout(() => runBeat(beats, idx + 1), 250);
+    // The spawn-in animation is 1s (.creature-spawn-in); wait it out plus a
+    // small buffer so the enemy's move lands on a creature that's fully in
+    // position, not one still scaling into view. // TUNABLE
+    const nextBeatDelay = justSwitched ? 1100 : 250;
+    if(idx + 1 < beats.length) setTimeout(() => runBeat(beats, idx + 1), nextBeatDelay);
     else battle.turnLock = false;
   }, resolveDelay);
 }
@@ -2244,10 +2303,22 @@ function catchChance(){
   return chance;
 }
 
+// What the NEXT catch attempt costs this encounter, based on how many have
+// already been used. Clamps to the last entry if the ladder is ever shorter
+// than maxCatchAttempts.
+function catchAttemptCost(){
+  const costs = CONFIG.catchAttemptCosts;
+  const used = (typeof battle !== 'undefined' && battle) ? battle.catchAttempts : 0;
+  return costs[Math.min(used, costs.length - 1)] || 0;
+}
+
 function attemptCapture(usePremium){
-  if(usePremium){
-    if(profile.premiumCurrency < CONFIG.premiumCostRetry){ toast("Not enough Gems."); return; }
-    profile.premiumCurrency -= CONFIG.premiumCostRetry;
+  // Cost comes from the attempt ladder rather than the caller's flag, so the
+  // button and the charge can never disagree about what this attempt costs.
+  const cost = catchAttemptCost();
+  if(cost > 0){
+    if(profile.premiumCurrency < cost){ toast("Not enough Gems."); return; }
+    profile.premiumCurrency -= cost;
   }
   battle.catchAttempts++;
   const chance = catchChance();
@@ -2507,7 +2578,11 @@ function runCaptureAnimation(outcome, isFirstCapture, onComplete){
         const speciesId = battle.enemy.speciesId;
         const sp = SPECIES[speciesId];
         const rec = profile.owned.find(o => o.speciesId === speciesId);
-        const level = rec ? rec.level : battle.enemy.level;
+        // Same forward-projection as `dupes` below: the record still holds
+        // the PRE-catch level at this point, so a catch that's about to
+        // raise your creature's level would otherwise reveal a card still
+        // showing the old one.
+        const level = rec ? Math.max(rec.level, battle.enemy.level) : battle.enemy.level;
         // The actual dupe/level mutation is deferred until "Continue" is
         // tapped (see applyCaptureResult), so at this point in the
         // animation the profile record still reflects the PRE-catch
@@ -2587,7 +2662,14 @@ function showCaptureCelebration(layer, cardWrap, isFirstCapture, onComplete){
   const speciesId = battle.enemy.speciesId;
   const sp = SPECIES[speciesId];
   const rec = profile.owned.find(o => o.speciesId === speciesId);
-  const level = rec ? rec.level : battle.enemy.level;
+  // This runs BEFORE applyCaptureResult (which only fires once Continue is
+  // tapped), so work out what the catch is about to do rather than reading
+  // the not-yet-updated record. Otherwise a catch that raises your
+  // creature's level would still show the old one.
+  const oldLevel = rec ? rec.level : null;
+  const level = rec ? Math.max(rec.level, battle.enemy.level) : battle.enemy.level;
+  const leveledUp = rec !== undefined && rec !== null && level > oldLevel;
+  const gainedSkills = leveledUp ? newlyLearnedSkills(speciesId, oldLevel, speciesId, level) : [];
 
   const backdrop = layer.querySelector('.capture-backdrop');
   if(backdrop){
@@ -2610,8 +2692,18 @@ function showCaptureCelebration(layer, cardWrap, isFirstCapture, onComplete){
   info.style.cssText = `position:absolute; left:0; right:0; display:flex; flex-direction:column; align-items:center; opacity:0; transition:opacity .4s ease .2s; pointer-events:none;`;
   info.innerHTML = `
     <div style="color:#fff; font-family:'Baloo 2',sans-serif; font-weight:800; font-size:20px;">${sp.name}</div>
-    ${isFirstCapture ? `<div style="font-weight:800; font-size:13px; margin-top:2px; color:#5CD1A8;">First Catch!</div>` : `<div style="font-weight:800; font-size:13px; margin-top:2px; color:#9DA2B5;">Lv ${level}</div>`}
-    <div style="color:#C9CCDB; font-size:12px; margin-top:10px; max-width:280px; text-align:center; padding:0 24px;">${sp.name} joins your Reserves! It'll be available to pick starting next run.</div>
+    ${isFirstCapture
+      ? `<div style="font-weight:800; font-size:13px; margin-top:2px; color:#5CD1A8;">First Catch!</div>`
+      : leveledUp
+        ? `<div style="font-weight:800; font-size:13px; margin-top:2px; color:#5FE07E;">Lv ${oldLevel} → Lv ${level}</div>`
+        : `<div style="font-weight:800; font-size:13px; margin-top:2px; color:#9DA2B5;">Lv ${level}</div>`}
+    <div style="color:#C9CCDB; font-size:12px; margin-top:10px; max-width:280px; text-align:center; padding:0 24px;">${
+      isFirstCapture
+        ? `${sp.name} joins your Reserves! It'll be available to pick starting next run.`
+        : leveledUp
+          ? `You caught a stronger one! Your ${sp.name} is now Lv ${level}, plus a duplicate.${gainedSkills.length ? ` Learned ${gainedSkills.map(s => s.name).join(' and ')}!` : ''}`
+          : `${sp.name} joins your Reserves! It'll be available to pick starting next run.`
+    }</div>
     <button class="btn btn-primary btn-full" style="max-width:280px; margin-top:16px; pointer-events:auto;" onclick="finalizeCaptureSuccess()">Continue</button>`;
   const eyebrow = document.createElement('div');
   eyebrow.style.cssText = `position:absolute; left:0; right:0; text-align:center; color:#FFD166; font-weight:900; font-size:13px; letter-spacing:.08em; text-transform:uppercase; opacity:0; transition:opacity .4s ease .2s;`;
@@ -2688,7 +2780,15 @@ function applyCaptureResult(outcome){
   if(outcome === 'success'){
     const caughtSpeciesId = battle.enemy.speciesId;
     const existing = profile.owned.find(o => o.speciesId === caughtSpeciesId);
-    if(existing) existing.dupes += 1;
+    if(existing){
+      // Catching a higher-level copy of something you already own now
+      // upgrades your creature to that level AND still banks the duplicate,
+      // rather than throwing the level away and keeping only the dupe. A
+      // lower-level catch changes nothing but the dupe count, so this can
+      // never move a creature backwards.
+      existing.level = Math.max(existing.level, battle.enemy.level);
+      existing.dupes += 1;
+    }
     else profile.owned.push({ speciesId: caughtSpeciesId, level: battle.enemy.level, dupes: 0 });
     const d = profile.dex[caughtSpeciesId] || { caught:0, highestLevel:0 };
     d.caught++; d.highestLevel = Math.max(d.highestLevel, battle.enemy.level);
@@ -3060,9 +3160,9 @@ function renderHub(){
   </div>
   <div class="bottom-nav">
     <button class="bottom-nav-btn locked ${ui.hubTab==='clan'?'active':''}" onclick="showLockTooltip(event, 'Coming Soon');"><span class="bn-icon"><img src="data:image/png;base64,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" style="width:34px;height:34px;object-fit:contain;"></span></button>
-    <button class="bottom-nav-btn ${ui.hubTab==='team'?'active':''}" onclick="switchHubTab('team')">${hasUnequippedSquadSlot() ? '<span class="bn-badge-alert">!</span>' : hasReadyLevelUp() ? '<span class="bn-badge"></span>' : ''}<span class="bn-icon">${(() => { const firstId = (profile.activeSquad||[])[0]; const art = firstId && CREATURE_ART[firstId]; if(art && art.card) return `<img src="${art.card}" style="width:48px;height:48px;object-fit:contain;">`; return `<img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGAAAABgCAMAAADVRocKAAABWGlDQ1BJQ0MgUHJvZmlsZQAAeJx9kLFLw1AQxr9WpaB1EB0cHDKJQ5SSCro4tBVEcQhVweqUvqapkMZHkiIFN/+Bgv+BCs5uFoc6OjgIopPo5uSk4KLleS+JpCJ6j+N+fO+74zggOW5wbvcDqDu+W1zKK5ulLSX1jAS9IAzm8Zyur0r+rj/j/T703k7LWb///43Biukxqp+UGcZdH0ioxPqezyXvE4+5tBRxS7IV8onkcsjngWe9WCC+JlZYzagQvxCr5R7d6uG63WDRDnL7tOlsrMk5lBNYxA48cNgw0IQCHdk//LOBv4BdcjfhUp+FGnzqyZEiJ5jEy3DAMAOVWEOGUpN3ju53F91PjbWDJ2ChI4S4iLWVDnA2Rydrx9rUPDAyBFy1ueEagdRHmaxWgddTYLgEjN5Qz7ZXzWrh9uk8MPAoxNskkDoEui0hPo6E6B5T8wNw6XwBA6diE8HYWhMAAAD/UExURf7+/khXYEdWXQIDBpiZmzA0OL2+wb7AwsTGyScqLaWnqre5u0VJTRAUGGVnapudoDpDSDg9QXV2edPU14WHiufo6p6ho3x9gRsjKBccIVhgZH6AgyAeJNvd4IB/g77Av8C/waCfod/g4+De4gAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA6EtFsAAABAdFJOU////////////////////////////////////////////////wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADv6go9AAAHsklEQVR42t2aiXLcNgyGRa4o8Vrd1l5Om7bv/44FQFKitDqdeDpTTpuJZRufCIDAD24S/rsWY2z4S7SS/xIQfmPP4hcBjG0Dlr7P/MPDAMbPffs04OQGzgF2XL4POglgGwB2Oshr7vXrOwBsERA/OAGYGGGH1lkAZ/HfF+wtbejXSsX0XRddeRIwsTZ9Xxbb4VPG4XPAuK1qIURdWYKEr/xbP/ERPhGiGjfCDgNsrR7Xi1vXTyXUZ/jqoURl7fQH8BHt6wgAf6BS4XeX10PNfuB6vQobE2LAPBWedsf8yroqvphwb4DKm78+hLUAc1/CFwWuWkWO4Q2sggv/6F6xhWMzBTAm3A+Loku11g0EUinBOi1lC0tKwykciuk2CUt21jGrhZM5Azj7tgPj5V8lV0IonkoyncnMSPlHXYurakbrbmm7RpgAWE1bbbROU9hAAekjCtNKk+GSuZE3RP7xT/K+UtzY1T7nhCTeAPlfpGgeAB1meQdekbAAYLK2hCeqSxaXwd3f3/tBHGKF3vX2y9SCsQbsZwEgJfhszT4Q8NfrFQALG7h2uieAacB+IZ17HKAtwX7xsQYgL13nW4gB+AbcvT9EwApVafC/CQDZMoiJWbWffHAwULE1AMNEuKd+UQTAQTLHHfz8iQCDPks2loEt3NlaDCiFwgZSXQhhNby/cSmUZbns1OYG/BZmaZRMPfTygD7lcAJMDJCyUIp/bAGSzvtoKciMP8YUghyqwEN5HgMyq7Y95Hwkpg0vAuA3yxCDrlJ1CgHwAAiy1FA2ym1AqzAIKwCMsR0ATa2EBrMRAE6Z0tuAjwoTdfkkswoBwUNlI1QNMY4BKeRVvgPgOwA+hKCAU2DwlPk6BP9B4tbtDqDAenQAkKaYpUZmeZ6PAHUMcHQHeAyy7M/vBhgTA4TcB1xWXXQdgwxZBHpkBkjVrwd5AJSYpiXEIHIRZJEyOwC7AaCDpqODBs0mD4sOWiVU/wsHjd+xmA4nrcZuk2eBgJvg4uulIjT8JrQD6GdY7PIIIOFs2B+bgAaL3WI/IEWEQTC+mvZPCGnvD4L7A0/aTrmmcrMKwHJ6DeW070AQhY5J7QAaTrXZMUG8YE9fb/pP9JHQvudraPBVKsd+k1HPFxvlrrVrLdNpfCcai95XuxpFl8nHLbQl6gy+fphvl7CDUQhHAGff3sh+D9UUznKa0TGAEIB4gcSq4dG6jwzJu/t0Jkrijny5PJ1o0Q0qLK5dy0eAxHNWKbsZ5La4vIkvD3Ci+lq4CPTOvpHBO3DS0lrViu/UIspTT/BeSlxMMIPQflm69ydj/v2pVMAxtor/SJIjBOXT0u8A8ofsX4ogSsHZYL/1vQA2II3FRx9Jcowg+KCOkkGxDPZTCwoR3t8MG5A5ilJ7xH6SUBzqIVkJIJx9J0pThsawSgwJKl8QklomyWHC1cYACjDXJTYaF+CqbPPBQaAncGDVB+2783YfAYwcJPreSzrrpoJhAxABDo/S5PCSVBICwBU5UO2+jKJqf+YICATqNMXHcQApyIcNgIlqT7EcgOIaCzUAnnuid1EE+1Ek4dWsiLqxYwAYqcWuJn0rq0HHA4BqRGgDJQx+2ItNPnaatju7gST5YcOsAwAVNbKyBAXNDcq5YD/HRsb/Pgegwlp5F93RQ306TH7YiiMAdYHbSfvko9oB7CMSE+XLT64RQIO+6M8CpPL1giUTvVU20AVS6SsophDF+GwIII8EnrVFAOmtEYBjwfcD1JcAjzUXBQAlU/Z1F3mAxXjHYwHGwFUJEwDqaKEb6skPNbgI01Q5xVj2Lw5peiPBCPmpNY3fNrqfaLcHBBkI5uE0pAf4XgNaqOCKejGWCNloUoxMKRvsdttNITVRTyCFBCcZa6sqDby/vl1ueEfUQDOQsu2IZHDwUP6kGb69g477c/YgGY/1NOEWt6A6rSHCl06j3mqMbGHeKDLsCq4fNx9U6Hfasr5gWf8oP7EhOFkB5bomxQI6AtuCKRQoUF4UqNVzqqktjjbKviADrsVuhVBFQfrrEVRFaMnuWg/KNgpQvAnEqwSZu2AIeqT254PRkmWRqggXk5BOvUtVkI103eXrXVcreqh2qp4cLogtG5s+3vV6BAJ0/yo4XUu/HAAJZcNrKzbu08YRCq9clWVx06frtIo6NSi7Ev7vOhS/YUaDngAFFvWSmrT+1q34icC7TWujC3oPYKDuaAh0M1ppYP6AIz0OgYiw0yNt3O27bacAxSa38clw++9qhh8C9Utg1Ys6p6HrnBiQ+nDK+RjLOV8CzOZkIeaAclaUtI/bG2D40CKeD2aDeI+p1MvRQQBIZzOgB3zKt0n/bUbjC3eCCq8SJoBupk8XAEmxA3hOLh2NT1PUeQiIit4aoImOWDxlBgAo7HJwETfDCIIICd1uouCXAJ0T1ktjLFXVW6b9QgBUvHG1LSgONgGotyBTZtkhi3BNAbX/Bn708RC8mCwLj5rudaPVNDfu60LR3fxqbtYLriVAdflNa3EH/rbl9FLvv6T45IPW6K7CnifAWH9ftL/gIjrMwlXlg4s+F+RvjzhbdBF9hsZOruGTcrb8YeoMMPvIc/oB6ezvEzds/XuMBcDBl2fs0D8vSGa7/U3rfwn4rvUvFRWGatgzfYUAAAAASUVORK5CYII=" style="width:40px;height:40px;object-fit:contain;">`; })()}</span></button>
+    <button class="bottom-nav-btn team-nav-target ${ui.hubTab==='team'?'active':''}" onclick="switchHubTab('team')">${hasUnequippedSquadSlot() ? '<span class="bn-badge-alert">!</span>' : hasReadyLevelUp() ? '<span class="bn-badge"></span>' : ''}<span class="bn-icon">${(() => { const firstId = (profile.activeSquad||[])[0]; const art = firstId && CREATURE_ART[firstId]; if(art && art.card) return `<img src="${art.card}" style="width:48px;height:48px;object-fit:contain;">`; return `<img src="data:image/png;base64,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" style="width:40px;height:40px;object-fit:contain;">`; })()}</span></button>
     <button class="bottom-nav-btn ${ui.hubTab==='worlds'?'active':''}" onclick="switchHubTab('worlds')"><span class="bn-icon"><img src="data:image/png;base64,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" style="width:40px;height:40px;object-fit:contain;"></span></button>
-    <button class="bottom-nav-btn ${!cardsUnlocked() ? 'locked' : ''} ${ui.hubTab==='upgrades'?'active':''}" onclick="${!cardsUnlocked() ? `showLockTooltip(event, 'Unlocks at World 1-2');` : `switchHubTab('upgrades')`}">${!cardsUnlocked() ? `<span class="bn-icon"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEQAAABECAMAAAAPzWOAAAAAwFBMVEUYJh9i6GwjWyJaY1tVo1olXPMeIRuioqMV6xvV1dUSIl8VMZ4Howh36YEnR2hQWFCvr68YPcsnSSd2snZBkvP///88/EYqUY09gN2Q/6AAAAB8/ov9/f06iPMBAQGE/pPT09M+kf4E/QcqToeIiIoAAAAZR/gAAAACAwMPFw0HCgsUGRQ6edYICQgNEQ4zdvEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABbBRPyAAAAMHRSTlP+/f79/P8X/P/8/v7+/P4JA/8LBP0B//z7/wD+/v/8/v7//v7+p//Njv9TMPtvS//99zRGAAACtklEQVR42u3X6ZaaMBTA8cgSBi2jMzpdBnvDOGpYirz/2zWsuTcE1Lbn9It5gN8hf0IS2Ps/GOyBPJA/R3h5soyS34NwCdYh+R1IDsvvv0Zjt4T8LuTbx09jVH71eSfyaSL++Xxe/SXin1eMsZsRfklVVgOp1FNkWZ02vfArSAtAxkzEPy/h6bDwHCukEV6Upxpwj0EYjBFghychRNxBp7J4NZB1CwBzg3C/3yfHEbIC57AQcRwrKPJcBhhqkFxqYG9DKjWbLy0S99BzDcm8R7iawwBYEf/MVJIYjwZSM+MdcoHjngwL0iSJ6YiE8ODSIQW415AhCXoUDzzhQNEhG2DziJGkR5gnGGz7sCdIZhFLkrbKAk7D2ykhmEd8S5LI8dSMygExo5iIWvOW2YDzo03SIhuZzSFVu+bNl7NYCCY3esWmNIqBqCTZ+AXHdZIULfucRjGRF/WCv46QekY5QjiNYiC2JA3iAEfIG41CkTZJPEbiTL7hrSCF6W9nIkk8JOkR+vkYyHSSC0FoFIJUV5MMOxuJYiBLy5pvkxjbI4lCkOtJBoREocjLeBugSQaERMHIDUn0bi/RfDDiX0+ikRStfIrYdsZmNukIuaD5EGQqiTsk0cga7ZEImU7C4HV8Ap50FIRMJonandFA0B5JkMkkpQVBeyRGVhNJup3RQFAUjVgPCzMJvlroKDWy+1BjN/Xh9IfFCNFRkgDguRnL5Q1JMKKjJKGrr53Xk2AERwmDbriTSdb26xY6TcOkGWFSI0LMJyGIeZrWmJqX43qRoBBNQhDzNA2PbtZ2yRxvESOIJiHIRjITkGnO+yslhpjcTl1BuyhJ0Fzs8E2T5w3EFCT0lcKK5OAOQF6YV95igCKXXq3pZbj5Q5GT/zXvb90TgZy7lqdpWWzmf7O2RZmmj7/RB/KfkN9lmt9UsQE65gAAAABJRU5ErkJggg==" style="width:34px;height:34px;object-fit:contain;"></span>` : `${((profile.premiumCurrency||0) >= pullCardCost(1) || hasCardReadyToUpgrade()) ? '<span class="bn-badge"></span>' : ''}<span class="bn-icon"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGAAAABgCAMAAADVRocKAAAAwFBMVEVl6G4kWCCfn59WoFgjMCIX6RoZKmJOXU4KngUZMaAgSd957IPp6ekbPctcXFxBlf81NTU6/UM6bbz///8AAAB8/ov+/v46iPQBAQGD/pPKysoD/QUZR/UDBAU6d9F9fX0GBgYTFxIICAgFBQUjM1I/kP8EBQQFBQUVFRQtaO8kV+01efHW1tYSJg9XV1cSFisAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACvhsXYAAAAMHRSTlP//f7+/P///f///////wL/BP//AQD////9/////8v//lP8MJH8/65tEP/////8/f82hmD6AAAD/UlEQVR42u2ZYXuaMBCAIeBw1VnXDhtQV4IdQgX9//9uCSjkkksIj08/bI/3tZq35CV3l9P79cXhPQAPwAPwAPwLgKzYW6LI7gUc6Ugc7wRQyj4swQn3ATJKX57f/qDxzOOF0uxewO83Q5yqqnr6QkC14/Hj6wCfYvnd3U9wNAH4//+dG76MvkYWQJkfC2oCdOu3URzzcjJgxRffd99HAafdjtJmPvdZ+5k9h6zdAXl2uC4ehgZAJfTOt9t4EURh99n9IcsdAOWweERITQyAT7FDs+0siZMk8QLfDAGAYfEzqTebTZ2+4wC+Q99os916SSyigzQ9BAOU6uIiUhOgEgr8HtAxIKSEgKz7A4tIuhnCCGh3SCgAwRkxh3Teb+ejA+T64laA2KFOgRoSJJcABWVkudHCBGgVhPIOqZBFwGghAfb0vNm4A3QFILyYv1w+3YMnCKcAcAW3WLAmSOIQPAFPOfUEgFmB2KCA0iDxbkmql0zcAVzBxaKAO/YERZa8xiUYAJXI0r7NcatgLZ+DAyrBALgqmOEKYm/BIQ09gIOGSzAAhAI22/40KWCeUAAOmkECDmgVGHcoiSiVFPS5CJWAA1oFc4vjoFWwgoADZa6AIVXHBslx3CvoATzbpY6AVsHWoKBDDAqGdI1JQAF2Bf1ZK9WCs6eRG6CvluboE5EMwCSggDEFIlivYABgElDAVYHnpkCqyYgEDOCoACn6iAQMMFGBBOASlg6AiQokQKbvEQaADYtphzKsL6L0fRxwsldLTYEM0OsmAnBTUKAAnrKXowAHBQvQ0ksAPWXrgJObghwFlJoEFDCqIBoSkdL8ahJ0gL1h6QChrAAANAkGgF2BB29VMkCToAFGekZEAQBwCZEdUDko8IECeAFRJWiA6QogQG1eNIC1Z0QVQIAqQQWM9IyYAghYKylbBYz0jLdUvTbfMhUJKsBFQQMVKABFggqw9ox9tTxaAIoEBeBYLXMLYAU7SAUw0jPeFKxsN33YxisAl2rZSNUSA8DmJU2JGKldR2hvu6cpPaNhVgEk1AJw+TbEtGqJAV6hBJJGyhRTvKR2Ba/2J4AdZE1SEoaXC2vjwiY1LDhA6SA5oQ+SnkW1nKZAH0gp6WgpAyKHRFSOAbA2/vpOifGUP/fENdWhZzQB0LtUByDn6ygsWBggugIdkKH3zSV5/2DDu8R8DIIpQIaCSItKItZPMLtZZwsJvBhAkFOAAQogge8LU8ejpQECe0YjYGheanIO0UEfGCAKSNJBGDIG1gFdyq6JNA81DHaH+WrTQrRUjQN488LOo4sjo1AxqCtdJr+ZdZJrfZLMcbRciFn0aspvTe2su3AZLT9+qHsAHoAH4L8E/AWjqgN23n9UJQAAAABJRU5ErkJggg==" style="width:40px;height:40px;object-fit:contain;"></span>`}</button>
+    <button class="bottom-nav-btn ${!cardsUnlocked() ? 'locked' : ''} ${ui.hubTab==='upgrades'?'active':''}" onclick="${!cardsUnlocked() ? `showLockTooltip(event, 'Unlocks at World 1-3');` : `switchHubTab('upgrades')`}">${!cardsUnlocked() ? `<span class="bn-icon"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEQAAABECAMAAAAPzWOAAAAAwFBMVEUYJh9i6GwjWyJaY1tVo1olXPMeIRuioqMV6xvV1dUSIl8VMZ4Howh36YEnR2hQWFCvr68YPcsnSSd2snZBkvP///88/EYqUY09gN2Q/6AAAAB8/ov9/f06iPMBAQGE/pPT09M+kf4E/QcqToeIiIoAAAAZR/gAAAACAwMPFw0HCgsUGRQ6edYICQgNEQ4zdvEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABbBRPyAAAAMHRSTlP+/f79/P8X/P/8/v7+/P4JA/8LBP0B//z7/wD+/v/8/v7//v7+p//Njv9TMPtvS//99zRGAAACtklEQVR42u3X6ZaaMBTA8cgSBi2jMzpdBnvDOGpYirz/2zWsuTcE1Lbn9It5gN8hf0IS2Ps/GOyBPJA/R3h5soyS34NwCdYh+R1IDsvvv0Zjt4T8LuTbx09jVH71eSfyaSL++Xxe/SXin1eMsZsRfklVVgOp1FNkWZ02vfArSAtAxkzEPy/h6bDwHCukEV6Upxpwj0EYjBFghychRNxBp7J4NZB1CwBzg3C/3yfHEbIC57AQcRwrKPJcBhhqkFxqYG9DKjWbLy0S99BzDcm8R7iawwBYEf/MVJIYjwZSM+MdcoHjngwL0iSJ6YiE8ODSIQW415AhCXoUDzzhQNEhG2DziJGkR5gnGGz7sCdIZhFLkrbKAk7D2ykhmEd8S5LI8dSMygExo5iIWvOW2YDzo03SIhuZzSFVu+bNl7NYCCY3esWmNIqBqCTZ+AXHdZIULfucRjGRF/WCv46QekY5QjiNYiC2JA3iAEfIG41CkTZJPEbiTL7hrSCF6W9nIkk8JOkR+vkYyHSSC0FoFIJUV5MMOxuJYiBLy5pvkxjbI4lCkOtJBoREocjLeBugSQaERMHIDUn0bi/RfDDiX0+ikRStfIrYdsZmNukIuaD5EGQqiTsk0cga7ZEImU7C4HV8Ap50FIRMJonandFA0B5JkMkkpQVBeyRGVhNJup3RQFAUjVgPCzMJvlroKDWy+1BjN/Xh9IfFCNFRkgDguRnL5Q1JMKKjJKGrr53Xk2AERwmDbriTSdb26xY6TcOkGWFSI0LMJyGIeZrWmJqX43qRoBBNQhDzNA2PbtZ2yRxvESOIJiHIRjITkGnO+yslhpjcTl1BuyhJ0Fzs8E2T5w3EFCT0lcKK5OAOQF6YV95igCKXXq3pZbj5Q5GT/zXvb90TgZy7lqdpWWzmf7O2RZmmj7/RB/KfkN9lmt9UsQE65gAAAABJRU5ErkJggg==" style="width:34px;height:34px;object-fit:contain;"></span>` : `${((profile.premiumCurrency||0) >= pullCardCost(1) || hasCardReadyToUpgrade()) ? '<span class="bn-badge"></span>' : ''}<span class="bn-icon"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGAAAABgCAMAAADVRocKAAAAwFBMVEVl6G4kWCCfn59WoFgjMCIX6RoZKmJOXU4KngUZMaAgSd957IPp6ekbPctcXFxBlf81NTU6/UM6bbz///8AAAB8/ov+/v46iPQBAQGD/pPKysoD/QUZR/UDBAU6d9F9fX0GBgYTFxIICAgFBQUjM1I/kP8EBQQFBQUVFRQtaO8kV+01efHW1tYSJg9XV1cSFisAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACvhsXYAAAAMHRSTlP//f7+/P///f///////wL/BP//AQD////9/////8v//lP8MJH8/65tEP/////8/f82hmD6AAAD/UlEQVR42u2ZYXuaMBCAIeBw1VnXDhtQV4IdQgX9//9uCSjkkksIj08/bI/3tZq35CV3l9P79cXhPQAPwAPwAPwLgKzYW6LI7gUc6Ugc7wRQyj4swQn3ATJKX57f/qDxzOOF0uxewO83Q5yqqnr6QkC14/Hj6wCfYvnd3U9wNAH4//+dG76MvkYWQJkfC2oCdOu3URzzcjJgxRffd99HAafdjtJmPvdZ+5k9h6zdAXl2uC4ehgZAJfTOt9t4EURh99n9IcsdAOWweERITQyAT7FDs+0siZMk8QLfDAGAYfEzqTebTZ2+4wC+Q99os916SSyigzQ9BAOU6uIiUhOgEgr8HtAxIKSEgKz7A4tIuhnCCGh3SCgAwRkxh3Teb+ejA+T64laA2KFOgRoSJJcABWVkudHCBGgVhPIOqZBFwGghAfb0vNm4A3QFILyYv1w+3YMnCKcAcAW3WLAmSOIQPAFPOfUEgFmB2KCA0iDxbkmql0zcAVzBxaKAO/YERZa8xiUYAJXI0r7NcatgLZ+DAyrBALgqmOEKYm/BIQ09gIOGSzAAhAI22/40KWCeUAAOmkECDmgVGHcoiSiVFPS5CJWAA1oFc4vjoFWwgoADZa6AIVXHBslx3CvoATzbpY6AVsHWoKBDDAqGdI1JQAF2Bf1ZK9WCs6eRG6CvluboE5EMwCSggDEFIlivYABgElDAVYHnpkCqyYgEDOCoACn6iAQMMFGBBOASlg6AiQokQKbvEQaADYtphzKsL6L0fRxwsldLTYEM0OsmAnBTUKAAnrKXowAHBQvQ0ksAPWXrgJObghwFlJoEFDCqIBoSkdL8ahJ0gL1h6QChrAAANAkGgF2BB29VMkCToAFGekZEAQBwCZEdUDko8IECeAFRJWiA6QogQG1eNIC1Z0QVQIAqQQWM9IyYAghYKylbBYz0jLdUvTbfMhUJKsBFQQMVKABFggqw9ox9tTxaAIoEBeBYLXMLYAU7SAUw0jPeFKxsN33YxisAl2rZSNUSA8DmJU2JGKldR2hvu6cpPaNhVgEk1AJw+TbEtGqJAV6hBJJGyhRTvKR2Ba/2J4AdZE1SEoaXC2vjwiY1LDhA6SA5oQ+SnkW1nKZAH0gp6WgpAyKHRFSOAbA2/vpOifGUP/fENdWhZzQB0LtUByDn6ygsWBggugIdkKH3zSV5/2DDu8R8DIIpQIaCSItKItZPMLtZZwsJvBhAkFOAAQogge8LU8ejpQECe0YjYGheanIO0UEfGCAKSNJBGDIG1gFdyq6JNA81DHaH+WrTQrRUjQN488LOo4sjo1AxqCtdJr+ZdZJrfZLMcbRciFn0aspvTe2su3AZLT9+qHsAHoAH4L8E/AWjqgN23n9UJQAAAABJRU5ErkJggg==" style="width:40px;height:40px;object-fit:contain;"></span>`}</button>
     <button class="bottom-nav-btn ${ui.hubTab==='shop'?'active':''}" onclick="switchHubTab('shop')"><span class="bn-icon"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGAAAABgCAMAAADVRocKAAAAwFBMVEVUVlfT2NgwLyFqWwNlCwKPj5Hr1QF0mKOvAQKi1eQAAACpkgIAAADBqAKqtckAAAB4fo08TlQAAAABAQH+/v78AAD72QD+5wCw5/YAAACiqLMWFAZOV2GRAAGNeQEAAAA1AAGbpbl4gJA7MwK69P4pKSnWuADIAQHa2tq5ublSAQKOusUbJCZ8fHwAAACzmgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABFOLz+AAAAMHRSTlP/////////////T/8p//+S//8A/v//////yP//////Z///////////////////s/+XltErAAAEIklEQVR42u2a63aiMBCAQxDWFt12FwvVqNgLXqji+7/dJiGQSUhAS+zZc9r5oeQy8zGZyRA5or83FvQD+A8BWTn/tJRZL2AyjwfJfNIDGGifEroBGZ0yWn1aRlQ96wSU1P7TAKGEsg+wGgJYfQtAvBkgcR9gcJa28lQF3McO5L4DQB3YiJSmM/NTJbns3dh6ieyd2wHMgbEIF71czCrJZeRpniPRG1CA6B3Tyfuq96C7gDQHCmmJeJXOHmALCVjQ7id5NyfRjTUXkFYndkJlIy0dQDcA7EE3vZ1cdHtatYCAWDqwo9eH9lpAwIzIlRuD6YhemwGZektkJjUKEwCDurVRPcuMgBgoxBZDEICAZyBkmgsS8ACCxlyu53tgKRRAABR2IOlYFB7agEms2qmDpgRTAcDgwzWanejApAUowf2wFQpmhnRUAB5IX1blFJ9LHaA4sJIbh9/PxgiAG5CvUQAXb6IBSs0MnpmSSAXoIxiiSxUAi4S6Qsp9qgDFtzH0eiELBpJVDj5YY28vxIt1QD2yD2CU2RqdmiFZ85C7Mm0u26hJIedSAsD8FoC5ChjtamHhCg61sI3fDO1YrjRDBwLVVrqaBgCHCbBn1FqqPHCqeipTbwfTiKnN1RiMlIQLYLLLVGEVoakhvIioaguoBmOQaeVA7hm27dX92hR+XnNUNaWMZHAfgGfNikfoBBxQnnPUBU8WO10taJVsJB82xa7eZUwQW08PiRb3YbypGjlbCS8QQyY1LB86oBbRaBYFn7Xmnxhh/lW1ioKb932OQIjwidiklsdxqxYpe+0cTknTwGG4lkN+mvqytQ5D3DTINIyItssgoKkWfpgmaSjMED+hralYABylSZJGwuhoSocSnxjUwNkIgUc+Xvt+tE2pkSRNw8j3/XPIGrS1pUPrKKlaScRa1URq9EwnRqFQ21I1tnCZCfBGZ1VafC5oXN5il+GbDZA4Eiug8tKql4JP2xRuoguQhiNiER7ihEa1Q0YsaN2Atb3+EnZ3UXeNXg8GnB0AyMIgCABefwE5xk0PuRAgCzKQBQA8e++1VNXqo+o4DgEEAHD3XMv7ktt/5w0Uu/LgzmS/unYLaNt3CzDYdwpo2SfEKaBt/wO7BBjsD0tTDWCy/+wQYLTvEGC27xCAjPavA+wRsgHIH7P96wAYHlA1Dyz2rwPk8vhoApjsuwQY7btbImK2fx3gkCPPBngx23e50Yz2HQPa9t0B8PF45GdekrPLRpw9D4YeWzoBYTdgOhSQ0JN8h0z7z6Z9AHFat0kyHNAv3xUQOAHQ31edHqSXiQ2At9st+yGae21h78/I9kJp/8q8+Su1r3jjdXMACh5fnclj0H6ltvz94lB+L02AhTMxAfIlWjoTtMy/OMg3f/M7GfBHAesfCCY/f9z4LoB/6Rn/EvtgAqkAAAAASUVORK5CYII=" style="width:40px;height:40px;object-fit:contain;"></span></button>
   </div>`;
 }
@@ -3420,7 +3520,7 @@ function renderBattle(){
         ${battle.captureResolved === 'failed' ? `<div class="muted">It broke free! ${remaining} attempt${remaining===1?'':'s'} left.</div>` : ''}
       </div>
       ${battle.captureAnimating ? '' : (battle.catchAttempts === 0 ? `<button class="btn btn-primary btn-full" onclick="attemptCapture(false)">Catch! (${chance}% chance)</button>` : '')}
-      ${battle.captureAnimating ? '' : (battle.catchAttempts > 0 ? `<button class="btn btn-full" style="background:var(--gem); color:#0B3B32; display:flex; justify-content:space-between; align-items:center; padding-left:16px; padding-right:16px;" onclick="attemptCapture(true)"><span>Catch! (${chance}% chance)</span><span><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAMAAACdt4HsAAAAwFBMVEUAAACRMaphPLICAQRcOapnQL04I2gsF08XFxUUFBQVDClTHGg8Jo1qJJWDLKJSM5ZILIlHLKAYGBkSEhMaGRsWFhgbETVqQcJCKXkpEzwaGhsWFhciCy5IGFYcEUEvHWZrJKZlP8KiN78AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAakpJ8AAAAMHRSTlMA///+///+/fwO+//+///+/v8w0W+S/P/+/U6u///7+////wAAAAAAAAAAAAAAAABvXb+IAAAB5UlEQVR42u1X2YKDIAwsCUrVWt1e2muv///ITcBWcFHW6lO3eauQ6UwISVgsntuSHeJylzzsv9ki23bz4N+fEZVCdUA8J4+xT8sqxvgrJhajdZzIKQYAAohAKvp1GiteSfKMGEAClO9jQpHsiX1B7i0AwCpF3Cdj2LObBQDy4286buyNkwUAOhQhHcz+oNl7ACgUAR18dFgD3D0kH2PVAoAcPFKHvbYIKJHA/jKggxPvWDibodapHDvftA5Pam667CHincfswhlpLTQ6uiQSYu+6F8T1kgshMsJRbWBZmaRPHQ46+i1CpLM3E9rWGTrB0di4dwGWmNqbmOR1LW6WKzsUvKhw2QXQykwGavG5sC1vQmEWVbnyAFRMm7KoODbiXTOh4EXa8+YDgCburXjXdCias/IDyN/iXeNQmDj1MDC5e/3u8RfrT4W1zux+AKKQiV4AomDuVj9A9AJ4ATwHQPAuqABAVQduYzx0G7kWH6bUA1OLQxUp7qtIlSmr8t4QfDWR/4KKqxegvlf/oaqsRaqVByC1G3uwL7x3AbgzlVZbHuxM0tOZRvVG8PTGQHeOgt15+nzgnVBgzITinZGiUTPS9Clthjlxhkl1hll5+rQ+w3thhhfL9DfTDK+2W2pOeDf+F/sBRGwsCXSx3EgAAAAASUVORK5CYII=" style="width:16px;height:16px;object-fit:contain;vertical-align:-3px;"> ${CONFIG.premiumCostRetry}</span></button>` : '')}
+      ${battle.captureAnimating ? '' : (battle.catchAttempts > 0 ? `<button class="btn btn-full" style="background:var(--gem); color:#0B3B32; display:flex; justify-content:space-between; align-items:center; padding-left:16px; padding-right:16px;" onclick="attemptCapture(true)"><span>Catch! (${chance}% chance)</span><span><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAMAAACdt4HsAAAAwFBMVEUAAACRMaphPLICAQRcOapnQL04I2gsF08XFxUUFBQVDClTHGg8Jo1qJJWDLKJSM5ZILIlHLKAYGBkSEhMaGRsWFhgbETVqQcJCKXkpEzwaGhsWFhciCy5IGFYcEUEvHWZrJKZlP8KiN78AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAakpJ8AAAAMHRSTlMA///+///+/fwO+//+///+/v8w0W+S/P/+/U6u///7+////wAAAAAAAAAAAAAAAABvXb+IAAAB5UlEQVR42u1X2YKDIAwsCUrVWt1e2muv///ITcBWcFHW6lO3eauQ6UwISVgsntuSHeJylzzsv9ki23bz4N+fEZVCdUA8J4+xT8sqxvgrJhajdZzIKQYAAohAKvp1GiteSfKMGEAClO9jQpHsiX1B7i0AwCpF3Cdj2LObBQDy4286buyNkwUAOhQhHcz+oNl7ACgUAR18dFgD3D0kH2PVAoAcPFKHvbYIKJHA/jKggxPvWDibodapHDvftA5Pam667CHincfswhlpLTQ6uiQSYu+6F8T1kgshMsJRbWBZmaRPHQ46+i1CpLM3E9rWGTrB0di4dwGWmNqbmOR1LW6WKzsUvKhw2QXQykwGavG5sC1vQmEWVbnyAFRMm7KoODbiXTOh4EXa8+YDgCburXjXdCias/IDyN/iXeNQmDj1MDC5e/3u8RfrT4W1zux+AKKQiV4AomDuVj9A9AJ4ATwHQPAuqABAVQduYzx0G7kWH6bUA1OLQxUp7qtIlSmr8t4QfDWR/4KKqxegvlf/oaqsRaqVByC1G3uwL7x3AbgzlVZbHuxM0tOZRvVG8PTGQHeOgt15+nzgnVBgzITinZGiUTPS9Clthjlxhkl1hll5+rQ+w3thhhfL9DfTDK+2W2pOeDf+F/sBRGwsCXSx3EgAAAAASUVORK5CYII=" style="width:16px;height:16px;object-fit:contain;vertical-align:-3px;"> ${catchAttemptCost()}</span></button>` : '')}
       ${profile.hasCompletedFirstCatch ? `<button class="btn btn-ghost btn-full" ${battle.captureAnimating ? 'disabled' : ''} onclick="continueAfterBattle()">Skip and continue</button>` : ''}
     </div>`;
   }
@@ -3806,9 +3906,39 @@ function renderEvopalStatsModal(){
         <div class="row" style="justify-content:space-between;"><span class="muted">SPD</span><span style="font-weight:800;">${spd}</span></div>
         <div class="row" style="justify-content:space-between;"><span class="muted">Dupe Progress</span><span style="font-weight:800;">${atMax ? 'MAX LEVEL' : `${Math.min(dupesNow,needed)}/${needed}`}</span></div>
       </div>
+      ${renderMoveList(speciesId, level)}
       <button class="btn btn-primary btn-full" style="margin-top:16px;" onclick="closeEvopalStatsPopup();">Close</button>
     </div>
   </div>`;
+}
+
+// The Moves section of the info popup. Shows the species' full skill list —
+// not just what it currently knows — so the list doubles as a preview of
+// what's coming, with anything above the creature's level dimmed and tagged
+// with the level it unlocks at. Uses the same type icons as the level-up
+// celebration so a move looks the same wherever it's surfaced.
+function renderMoveList(speciesId, level){
+  const skills = SPECIES[speciesId].skills || [];
+  if(!skills.length) return '';
+  return `<div class="divider" style="margin:12px 0;"></div>
+    <div class="muted" style="font-weight:800; font-size:11px; letter-spacing:.06em; text-transform:uppercase; margin-bottom:8px;">Moves</div>
+    <div style="display:flex; flex-direction:column; gap:8px;">
+      ${skills.map(sk => {
+        const known = sk.level <= level;
+        return `<div style="display:flex; align-items:flex-start; gap:8px; ${known ? '' : 'opacity:.5;'}">
+          <div style="font-size:16px; line-height:1.2; flex:none;">${known ? (SKILL_TYPE_ICON[sk.type] || '✨') : '🔒'}</div>
+          <div style="flex:1; min-width:0;">
+            <div style="display:flex; align-items:baseline; gap:6px;">
+              <span style="font-family:'Baloo 2',sans-serif; font-weight:800; font-size:14px;">${sk.name}</span>
+              ${known
+                ? `<span class="muted" style="font-weight:700; font-size:10.5px; white-space:nowrap;">${skillMaxEnergy(sk)} uses</span>`
+                : `<span style="font-weight:800; font-size:10px; white-space:nowrap; color:var(--action-blue); border:1.5px solid var(--action-blue); border-radius:999px; padding:0 6px;">Lv ${sk.level}</span>`}
+            </div>
+            <div class="muted" style="font-size:11.5px; line-height:1.35;">${sk.desc}</div>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>`;
 }
 
 function levelUpCreature(speciesId, evt){
@@ -3870,18 +4000,18 @@ function tryAutoEvolve(rec){
   return { name: SPECIES[newSpeciesId].name, speciesId: newSpeciesId };
 }
 
-// Cards screen unlocks once the player has cleared Stage 1-1 (i.e. reached
-// World 1-2) — keeps a brand-new player's first few minutes focused on the
+// Cards screen unlocks once the player has cleared Stage 1-2 (i.e. reached
+// World 1-3) — keeps a new player's first couple of stages focused on the
 // core battle loop before the meta-progression system opens up.
 function cardsUnlocked(){
-  return (profile.world1Stage || 1) >= 2;
+  return (profile.world1Stage || 1) >= 3;
 }
 function renderUpgradesTab(){
   if(!cardsUnlocked()){
     return `<div class="center-text" style="padding:60px 24px; display:flex; flex-direction:column; align-items:center; gap:10px;">
       <div style="font-size:48px;">🔒</div>
       <div class="display" style="font-size:19px;">Cards Locked</div>
-      <div class="muted" style="max-width:260px;">Clear Stage 1-1 to unlock the Cards screen and start pulling permanent boosts for your squad.</div>
+      <div class="muted" style="max-width:260px;">Clear Stage 1-2 to unlock the Cards screen and start pulling permanent boosts for your squad.</div>
     </div>`;
   }
   const cardsList = Object.values(CARD_DEFS);
@@ -4630,10 +4760,68 @@ function formatCountdown(ms){
   const h = Math.floor(totalMin / 60), m = totalMin % 60;
   return h > 0 ? `${h}h ${m}m` : `${m}m`;
 }
-function buyShopSlot(idx){
+// Flies a just-purchased Evopal card from the shop tile into the Team nav
+// button, so a purchase has a visible destination and the player knows where
+// to go to find it. Same body-level layer approach as flyGemsToBalance —
+// render() wipes #app's innerHTML, so anything appended inside it would be
+// destroyed mid-flight.
+function flyCardToTeamNav(fromX, fromY, speciesId){
+  const target = document.querySelector('.team-nav-target');
+  if(!target) return;
+  const appRect = document.getElementById('app').getBoundingClientRect();
+  const targetRect = target.getBoundingClientRect();
+  const toX = targetRect.left + targetRect.width / 2 - appRect.left;
+  const toY = targetRect.top + targetRect.height / 2 - appRect.top;
+
+  let layer = document.getElementById('cardFlyLayer');
+  if(!layer){
+    layer = document.createElement('div');
+    layer.id = 'cardFlyLayer';
+    layer.className = 'card-fly-layer';
+    document.body.appendChild(layer);
+  }
+  positionLayerOverApp(layer);
+
+  const art = CREATURE_ART[speciesId];
+  const el = document.createElement('div');
+  el.className = 'card-fly-piece';
+  const DURATION_MS = 950; // TUNABLE
+  // Arc peaks above whichever of the two points is higher, so the card always
+  // travels up and over into the nav rather than cutting straight across.
+  const arcX = (toX - fromX) * 0.45;
+  const arcY = Math.min(fromY, toY) - 70 - fromY;
+  el.style.cssText = `left:${fromX}px; top:${fromY}px; animation-duration:${DURATION_MS}ms;`
+    + ` --arc-x:${arcX.toFixed(0)}px; --arc-y:${arcY.toFixed(0)}px;`
+    + ` --end-x:${(toX - fromX).toFixed(0)}px; --end-y:${(toY - fromY).toFixed(0)}px;`;
+  el.innerHTML = art && art.card
+    ? `<img src="${art.card}" style="width:46px; height:46px; object-fit:contain;">`
+    : `<span style="font-size:30px;">${SPECIES[speciesId].icon}</span>`;
+  layer.appendChild(el);
+  setTimeout(() => el.remove(), DURATION_MS + 100);
+
+  // Bounce the nav button as the card lands, timed to the shrink-in.
+  setTimeout(() => {
+    const t = document.querySelector('.team-nav-target');
+    if(!t) return;
+    t.classList.add('nav-card-pop');
+    setTimeout(() => t.classList.remove('nav-card-pop'), 340);
+  }, DURATION_MS - 180);
+}
+
+function buyShopSlot(idx, evt){
   const slot = profile.shopSlots[idx];
   if(!slot || slot.stock <= 0) return;
   if(profile.coins < slot.price){ toast('Not enough Coins.'); return; }
+  // Measure the tile's art BEFORE the purchase triggers render(), which
+  // replaces #app's innerHTML and invalidates every node in it.
+  let from = null;
+  const tile = evt && evt.currentTarget && evt.currentTarget.closest ? evt.currentTarget.closest('.creature-tile') : null;
+  const artEl = tile ? (tile.querySelector('.icon') || tile) : null;
+  if(artEl){
+    const appRect = document.getElementById('app').getBoundingClientRect();
+    const r = artEl.getBoundingClientRect();
+    from = { x: r.left + r.width / 2 - appRect.left, y: r.top + r.height / 2 - appRect.top };
+  }
   profile.coins -= slot.price;
   const rec = profile.owned.find(o => o.speciesId === slot.speciesId);
   if(rec) rec.dupes++;
@@ -4644,6 +4832,8 @@ function buyShopSlot(idx){
   saveProfile();
   toast(SPECIES[slot.speciesId].name + ' added to your roster!');
   render();
+  // After render(), so the nav button being measured is the live one.
+  if(from) flyCardToTeamNav(from.x, from.y, slot.speciesId);
 }
 function renderShopTab(){
   maybeRefreshShop();
@@ -4665,7 +4855,7 @@ function renderShopTab(){
           <div style="padding:6px 6px 0;">
             ${slot.stock <= 0
               ? `<div class="muted center-text" style="font-size:10px; font-weight:800; padding:6px 0;">SOLD OUT</div>`
-              : `<button class="btn ${canAfford ? 'btn-primary' : 'btn-disabled'}" style="width:100%; padding:6px 2px; font-size:11px;" onclick="buyShopSlot(${idx})">${goldIcon(13)} ${slot.price}</button>`
+              : `<button class="btn ${canAfford ? 'btn-primary' : 'btn-disabled'}" style="width:100%; padding:6px 2px; font-size:11px;" onclick="buyShopSlot(${idx}, event)">${goldIcon(13)} ${slot.price}</button>`
             }
           </div>
         </div>`;
