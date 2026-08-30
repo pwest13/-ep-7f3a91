@@ -3,7 +3,7 @@
 // CACHE_VERSION is rewritten by build_pwa.py with a hash of index.html, so
 // every deploy produces a new cache name and the old one gets cleaned up.
 // Without that, a cache-first worker would serve the stale game forever.
-const CACHE_VERSION = 'acf88ebd2edd';
+const CACHE_VERSION = 'bcbb35c6d385';
 const CACHE_NAME = `evopals-${CACHE_VERSION}`;
 
 // Everything the game needs to run with no network at all. The game itself is
