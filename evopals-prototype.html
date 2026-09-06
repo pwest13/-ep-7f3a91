@@ -3768,10 +3768,10 @@ function applyPlayerAction(action, log, actingCreature){
       trackQuestProgress('healEvopals', 1);
     } else if(item.revive){
       const fainted = run.squad.find(c => c.currentHp <= 0);
-      if(fainted){ fainted.currentHp = Math.round(maxHp(fainted)*0.5); log.push(`${SPECIES[fainted.speciesId].name} was revived!`); }
+      if(fainted){ fainted.currentHp = Math.round(maxHp(fainted)*0.5); log.push(`${displayName(fainted.speciesId)} was revived!`); }
     } else if(item.refillEnergy){
       p.skillEnergy = skillEnergyFull(p);
-      log.push(`Used ${item.name} — ${SPECIES[p.speciesId].name}'s moves feel recharged!`);
+      log.push(`Used ${item.name} — ${displayName(p.speciesId)}'s moves feel recharged!`);
     }
     profile.inventory[action.itemId] = Math.max(0, (profile.inventory[action.itemId]||0) - 1);
     saveProfile();
@@ -3779,7 +3779,7 @@ function applyPlayerAction(action, log, actingCreature){
   } else if(action.kind === 'switch'){
     battle.activeIdx = action.idx;
     battle.justSwitchedIn = true; // consumed once by renderBattle() to play the spawn-in animation on the newly active creature
-    log.push(`Go, ${SPECIES[run.squad[action.idx].speciesId].name}!`);
+    log.push(`Go, ${displayName(run.squad[action.idx].speciesId)}!`);
   }
   return true;
 }
@@ -4756,6 +4756,36 @@ function shinyHue(speciesId){
 function shinyFilter(speciesId){
   return `filter: hue-rotate(${shinyHue(speciesId)}deg) saturate(1.45) brightness(1.06);`;
 }
+// ===================== NICKNAMES =====================
+// Stored per owned record. Only things you own can be nicknamed, so wild
+// enemies and undiscovered species always show their species name.
+const NICKNAME_MAX = 14;   // TUNABLE
+// Everywhere a player's own Evopal is named should go through this rather
+// than SPECIES[id].name, so a rename shows up consistently.
+function displayName(speciesId){
+  const rec = (profile.owned || []).find(o => o.speciesId === speciesId);
+  const nn = rec && rec.nickname ? String(rec.nickname).trim() : '';
+  return nn || (SPECIES[speciesId] ? SPECIES[speciesId].name : speciesId);
+}
+function beginRename(){ ui.renaming = true; render(); }
+function cancelRename(){ ui.renaming = false; render(); }
+function commitRename(){
+  const speciesId = ui.statsPopupSpecies;
+  const rec = (profile.owned || []).find(o => o.speciesId === speciesId);
+  const input = document.getElementById('nicknameInput');
+  if(!rec || !input){ ui.renaming = false; render(); return; }
+  // Strip control characters and clamp length. An empty value is a deliberate
+  // reset back to the species name rather than an error.
+  const raw = input.value.replace(/[\u0000-\u001F\u007F]/g, '').trim().slice(0, NICKNAME_MAX);
+  if(raw && raw !== SPECIES[speciesId].name) rec.nickname = raw;
+  else delete rec.nickname;
+  ui.renaming = false;
+  track('evopal_renamed', { speciesId, cleared: !raw });
+  saveProfile();
+  toast(raw ? `Renamed to ${raw}.` : `Name reset to ${SPECIES[speciesId].name}.`);
+  render();
+}
+
 function isShinyOwned(speciesId){
   const rec = (profile.owned || []).find(o => o.speciesId === speciesId);
   return !!(rec && rec.isShiny);
@@ -5909,7 +5939,7 @@ function renderTeamTab(){
                 <button onclick="event.stopPropagation(); showEvopalStatsPopup('${sp.id}');" style="position:absolute; top:2px; left:2px; width:20px; height:20px; border-radius:50%; background:#fff; border:2px solid var(--ink); display:flex; align-items:center; justify-content:center; z-index:3; padding:0; font-weight:900; font-size:12px; font-style:italic; font-family:Georgia,serif; color:var(--action-blue); cursor:pointer;">i</button>
                 <span style="position:absolute; top:2px; right:2px; background:var(--ember); color:#fff; font-size:13px; font-weight:800; padding:2px 8px; border-radius:10px; border:2px solid var(--ink); box-shadow:0 2px 0 rgba(0,0,0,.25); z-index:3;">Lv ${rec ? rec.level : 1}</span>
               </div>
-              <div class="ct-band" style="${elementBandStyle(sp.element)} font-size:13px; padding:6px 0;">${sp.name}</div>
+              <div class="ct-band" style="${elementBandStyle(sp.element)} font-size:13px; padding:6px 0;">${displayName(sp.id)}</div>
               ${rec ? renderLevelUpRow(rec, sp) : ''}
             </div>`;
           }
@@ -5962,7 +5992,7 @@ function renderTeamTab(){
               <button onclick="event.stopPropagation(); showEvopalStatsPopup('${sp.id}');" style="position:absolute; top:2px; left:2px; width:20px; height:20px; border-radius:50%; background:#fff; border:2px solid var(--ink); display:flex; align-items:center; justify-content:center; z-index:3; padding:0; font-weight:900; font-size:12px; font-style:italic; font-family:Georgia,serif; color:var(--action-blue); cursor:pointer;">i</button>
               <span style="position:absolute; top:2px; right:2px; background:var(--ember); color:#fff; font-size:13px; font-weight:800; padding:2px 8px; border-radius:10px; border:2px solid var(--ink); box-shadow:0 2px 0 rgba(0,0,0,.25); z-index:3;">Lv ${rec.level}</span>
             </div>
-            <div class="ct-band" style="${elementBandStyle(sp.element)} font-size:13px; padding:6px 0;">${sp.name}</div>
+            <div class="ct-band" style="${elementBandStyle(sp.element)} font-size:13px; padding:6px 0;">${displayName(sp.id)}</div>
             ${renderLevelUpRow(rec, sp)}
           </div>`;
         }).join('')}
@@ -6010,6 +6040,7 @@ function showEvopalStatsPopup(speciesId){
   render();
 }
 function closeEvopalStatsPopup(){
+  ui.renaming = false;
   ui.modal = null;
   ui.statsPopupSpecies = null;
   render();
@@ -6076,7 +6107,18 @@ function renderEvopalStatsModal(){
         </div>
         <div>
           <div class="muted" style="font-weight:800; font-size:11px; letter-spacing:.03em;">${speciesNumber(speciesId)}</div>
-          <div class="display" style="font-size:18px;">${sp.name}</div>
+          ${rec ? (ui.renaming ? `
+            <div style="display:flex; align-items:center; gap:6px; margin:2px 0;">
+              <input id="nicknameInput" type="text" maxlength="${NICKNAME_MAX}" value="${(rec.nickname || '').replace(/"/g,'&quot;')}" placeholder="${sp.name}"
+                onclick="event.stopPropagation()" onkeydown="if(event.key==='Enter'){event.preventDefault(); commitRename();} if(event.key==='Escape'){cancelRename();}"
+                style="width:120px; font-family:'Baloo 2',sans-serif; font-weight:700; font-size:16px; padding:3px 7px; border:3px solid var(--ink); border-radius:9px; background:var(--surface-raised); color:var(--ink); min-width:0;">
+              <button onclick="event.stopPropagation(); commitRename();" style="flex:none; width:26px; height:26px; border-radius:50%; background:var(--verdant); border:2px solid var(--ink); color:#fff; font-weight:900; font-size:13px; line-height:1; cursor:pointer; padding:0;">✓</button>
+            </div>` : `
+            <div style="display:flex; align-items:center; gap:6px;">
+              <div class="display" style="font-size:18px;">${displayName(speciesId)}</div>
+              <button onclick="event.stopPropagation(); beginRename();" title="Rename" style="flex:none; width:22px; height:22px; border-radius:50%; background:var(--surface); border:2px solid var(--ink); display:flex; align-items:center; justify-content:center; font-size:11px; line-height:1; cursor:pointer; padding:0;">✏️</button>
+            </div>`) : `<div class="display" style="font-size:18px;">${sp.name}</div>`}
+          ${rec && rec.nickname && !ui.renaming ? `<div class="muted" style="font-size:10.5px; margin-top:-1px;">${sp.name}</div>` : ''}
           <div class="muted" style="font-weight:700;">Lv ${level}</div>
         </div>
       </div>
