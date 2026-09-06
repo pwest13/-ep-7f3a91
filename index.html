@@ -931,6 +931,63 @@
     0%,100%{ opacity:.45; transform:translateY(0); }
     50%{ opacity:1; transform:translateY(3px); }
   }
+  /* ---- base scene ---- */
+  .base-sheet{ background:var(--surface); border:3px solid var(--ink); border-radius:18px; box-shadow:0 3px 0 var(--ink); padding:12px 14px; }
+  .base-bob{ animation:baseBob 1.4s ease-in-out infinite; transform-box:fill-box; transform-origin:center; }
+  @keyframes baseBob{ 0%,100%{ transform:translateY(0); } 50%{ transform:translateY(-5px); } }
+  /* ---- evolution countdown ---- */
+  #evo-countdown{ z-index:210; overflow:hidden; }
+  #evo-countdown .ec-backdrop{
+    position:absolute; inset:0; background:rgba(8,9,16,.55);
+    transition:background .45s ease;
+  }
+  #evo-countdown.ec-s2 .ec-backdrop{ background:rgba(8,9,16,.78); }
+  #evo-countdown.ec-s3 .ec-backdrop{ background:rgba(6,6,12,.92); }
+  #evo-countdown .ec-rays{
+    position:absolute; left:50%; top:38%; width:560px; height:560px;
+    transform:translate(-50%,-50%); mix-blend-mode:screen; opacity:.35;
+    transition:opacity .45s ease;
+  }
+  #evo-countdown.ec-s2 .ec-rays{ opacity:.6; }
+  #evo-countdown.ec-s3 .ec-rays{ opacity:.9; }
+  #evo-countdown .ec-rays-spin{
+    width:100%; height:100%; border-radius:50%;
+    background:conic-gradient(from 0deg, rgba(255,122,69,.75) 0 6deg, transparent 6deg 45deg);
+    animation:captureRaysSpin 2.4s linear infinite;
+  }
+  #evo-countdown.ec-s3 .ec-rays-spin{ animation-duration:.9s; }
+  #evo-countdown .ec-body{
+    position:absolute; inset:0; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; gap:8px; padding:24px; text-align:center;
+  }
+  #evo-countdown .ec-art{
+    filter:drop-shadow(0 0 18px rgba(255,150,70,.8));
+    animation:ecBreathe 1s ease-in-out infinite;
+  }
+  @keyframes ecBreathe{ 0%,100%{ transform:scale(1); } 50%{ transform:scale(1.07); } }
+  #evo-countdown.ec-s3 .ec-art{ animation-duration:.45s; filter:drop-shadow(0 0 30px rgba(255,200,90,1)); }
+  #evo-countdown .ec-title{ font-family:'Baloo 2',sans-serif; font-weight:800; font-size:21px; color:#fff; }
+  #evo-countdown .ec-sub{ font-size:13px; font-weight:700; color:var(--ember); margin-top:-4px; }
+  #evo-countdown .ec-count{
+    font-family:'Baloo 2',sans-serif; font-weight:800; font-size:76px; line-height:1;
+    color:#fff; text-shadow:0 4px 0 #A8461A, 0 0 26px rgba(255,150,70,.9); margin:2px 0 6px;
+  }
+  #evo-countdown .ec-count.pop{ animation:ecCountPop .5s cubic-bezier(.2,1.5,.4,1); }
+  @keyframes ecCountPop{ 0%{ transform:scale(2.1); opacity:0; } 55%{ transform:scale(.92); opacity:1; } 100%{ transform:scale(1); opacity:1; } }
+  #evo-countdown .ec-stop{
+    background:#E5533D; color:#fff; border-color:var(--ink);
+    box-shadow:0 4px 0 #8C2C1B; padding:13px 44px; font-size:16px;
+  }
+  #evo-countdown .ec-stop:active{ transform:translateY(3px); box-shadow:0 1px 0 #8C2C1B; }
+  #evo-countdown .ec-warn{ font-size:11.5px; color:#C9CEDA; max-width:250px; margin-top:8px; line-height:1.35; }
+  /* Shake lives on #app, which render() never replaces (it only clears its
+     innerHTML), so a redraw mid-countdown can't drop the effect. */
+  @keyframes evoShake1{ 0%,100%{ transform:translate(0,0); } 25%{ transform:translate(-2px,1px); } 75%{ transform:translate(2px,-1px); } }
+  @keyframes evoShake2{ 0%,100%{ transform:translate(0,0); } 20%{ transform:translate(-4px,2px); } 60%{ transform:translate(4px,-2px); } 80%{ transform:translate(-3px,-1px); } }
+  @keyframes evoShake3{ 0%,100%{ transform:translate(0,0); } 15%{ transform:translate(-7px,3px); } 40%{ transform:translate(7px,-3px); } 65%{ transform:translate(-5px,-3px); } 85%{ transform:translate(5px,2px); } }
+  #app.evo-shake-1{ animation:evoShake1 .5s ease-in-out 2; }
+  #app.evo-shake-2{ animation:evoShake2 .4s ease-in-out 3; }
+  #app.evo-shake-3{ animation:evoShake3 .28s ease-in-out 4; }
   #evo-intro .ei-skip{
     position:absolute; top:14px; right:14px; z-index:40; background:var(--surface);
     border:3px solid var(--ink); border-radius:999px; padding:5px 13px;
@@ -4855,7 +4912,7 @@ function renderHub(){
       : renderWorldsTab()}
   </div>
   ${ui.hubTab === 'worlds' && !profile.totalRuns ? '' : `<div class="bottom-nav">
-    <button class="bottom-nav-btn ${!baseTabUnlocked() ? 'locked' : ''} ${ui.hubTab==='base'?'active':''}" onclick="${!baseTabUnlocked() ? `showLockTooltip(event, 'Unlocks after your first run');` : `switchHubTab('base')`}">${baseTabUnlocked() && basePending('farm').units + basePending('pen').units > 0 ? '<span class="bn-badge"></span>' : ''}<span class="bn-icon">${!baseTabUnlocked()
+    <button class="bottom-nav-btn ${!baseTabUnlocked() ? 'locked' : ''} ${ui.hubTab==='base'?'active':''}" onclick="${!baseTabUnlocked() ? `showLockTooltip(event, 'Unlocks at World 3');` : `switchHubTab('base')`}">${baseTabUnlocked() && basePending('farm').units + basePending('pen').units > 0 ? '<span class="bn-badge"></span>' : ''}<span class="bn-icon">${!baseTabUnlocked()
       ? `<span style="display:flex; align-items:center; justify-content:center; width:34px; height:34px;">${lockIcon(24)}</span>`
       : `<svg viewBox="0 0 120 100" style="width:36px;height:36px;display:block;"><g stroke="#23262F" stroke-width="6" stroke-linejoin="round" stroke-linecap="round"><rect x="20" y="44" width="80" height="42" rx="6" fill="#E9714A"/><path d="M16 46 60 14l44 32z" fill="#F2B705"/><rect x="46" y="60" width="28" height="26" rx="4" fill="#FFF3D8"/></g></svg>`}</span></button>
     <button class="bottom-nav-btn team-nav-target ${ui.hubTab==='team'?'active':''}" onclick="switchHubTab('team')">${hasUnequippedSquadSlot() ? '<span class="bn-badge-alert">!</span>' : (hasReadyLevelUp() || hasPendingPlayerLevelUp()) ? '<span class="bn-badge"></span>' : ''}<span class="bn-icon">${(() => { const firstId = (profile.activeSquad||[])[0]; const art = firstId && CREATURE_ART[firstId]; if(art && art.card) return `<img src="${art.card}" style="width:48px;height:48px;object-fit:contain;">`; return `<img src="data:image/png;base64,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" style="width:40px;height:40px;object-fit:contain;">`; })()}</span></button>
@@ -5552,9 +5609,14 @@ function renderLevelUpRow(rec, sp){
   const atMaxLevel = rec.level >= CONFIG.maxCreatureLevel;
   if(atMaxLevel) return `<div class="muted center-text" style="font-size:9.5px; padding-top:5px;">MAX LEVEL</div>`;
   const lvlNeeded = dupesNeededForLevel(rec.level);
-  const canLevelUp = rec.dupes >= lvlNeeded;
+  // A held evolution blocks further levels outright — the only move left is
+  // to go through with it, so the button says so and is always pressable.
+  const held = !!rec.evolutionHeld;
+  const canLevelUp = held || rec.dupes >= lvlNeeded;
   const willEvolveNext = sp.evolveInto && sp.evolveLevel && (rec.level + 1) >= sp.evolveLevel;
-  const btnLabel = canLevelUp ? (willEvolveNext ? 'Evolve' : 'Level Up') : `${Math.min(rec.dupes,lvlNeeded)}/${lvlNeeded}`;
+  const btnLabel = held ? 'Evolve now'
+    : canLevelUp ? (willEvolveNext ? 'Evolve' : 'Level Up')
+    : `${Math.min(rec.dupes,lvlNeeded)}/${lvlNeeded}`;
   const lvlPct = Math.max(0, Math.min(100, Math.round((Math.min(rec.dupes,lvlNeeded)/lvlNeeded)*100)));
   return `<div style="padding:5px 6px 7px;">
     <button class="btn ${canLevelUp?'btn-primary':'btn-disabled'}" data-levelup-species="${rec.speciesId}" style="position:relative; width:100%; padding:0; font-size:10.5px; overflow:hidden; box-shadow:${canLevelUp?'0 2px 0 var(--action-blue-dark)':'none'};" onclick="event.stopPropagation(); levelUpCreature('${rec.speciesId}', event)">
@@ -5884,9 +5946,134 @@ function renderMoveList(speciesId, level){
     </div>`;
 }
 
+// ===================== EVOLUTION COUNTDOWN =====================
+// Evolution used to happen the instant you pressed Level Up, which is why a
+// playtester reported their Evopal "evolved by itself" — it was their press,
+// but nothing marked the moment, and the pre-evolution form is retired from
+// the collection for good. So it now gets a 3-2-1 countdown you can stop.
+//
+// Stopping keeps the level you just paid for but HOLDS the evolution: that
+// record can't gain any more levels until it evolves. Evolution is deferred,
+// never cancelled, so "I want to keep my Scorch" is a real choice with a
+// real cost rather than a free opt-out.
+const EVO_COUNTDOWN_FROM = 3;      // TUNABLE
+const EVO_COUNTDOWN_TICK_MS = 1000; // TUNABLE
+
+function beginEvolutionCountdown(speciesId, ctx){
+  const rec = profile.owned.find(o => o.speciesId === speciesId);
+  if(!rec) return;
+  const sp = SPECIES[speciesId];
+  const intoName = sp.evolveInto ? SPECIES[sp.evolveInto].name : '???';
+
+  const layer = document.createElement('div');
+  layer.id = 'evo-countdown';
+  positionLayerOverApp(layer);
+  layer.innerHTML = `
+    <div class="ec-backdrop"></div>
+    <div class="ec-rays"><div class="ec-rays-spin"></div></div>
+    <div class="ec-body">
+      <div class="ec-art">${cardArt(speciesId, 150)}</div>
+      <div class="ec-title">${sp.name} is about to evolve…</div>
+      <div class="ec-sub">into ${intoName}</div>
+      <div class="ec-count" id="ecCount">${EVO_COUNTDOWN_FROM}</div>
+      <button class="btn ec-stop" id="ecStop">Stop</button>
+      <div class="ec-warn">Stopping keeps ${sp.name}, but it can't level up again until it evolves.</div>
+    </div>`;
+  document.body.appendChild(layer);
+
+  const app = document.getElementById('app');
+  const reposition = () => positionLayerOverApp(layer);
+  window.addEventListener('resize', reposition);
+
+  let n = EVO_COUNTDOWN_FROM;
+  let timer = null, stopped = false;
+
+  function cleanup(){
+    clearTimeout(timer);
+    window.removeEventListener('resize', reposition);
+    if(app) app.classList.remove('evo-shake-1','evo-shake-2','evo-shake-3');
+    layer.remove();
+  }
+
+  function tick(){
+    if(stopped) return;
+    const el = document.getElementById('ecCount');
+    if(n <= 0){
+      cleanup();
+      finishEvolutionCountdown(speciesId, ctx);
+      return;
+    }
+    if(el){
+      el.textContent = n;
+      el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop');
+    }
+    // Each tick darkens the backdrop further and shakes harder, so the
+    // pressure ramps instead of sitting flat for three seconds.
+    const step = (EVO_COUNTDOWN_FROM - n) + 1;
+    layer.classList.remove('ec-s1','ec-s2','ec-s3');
+    layer.classList.add('ec-s' + Math.min(3, step));
+    if(app){
+      app.classList.remove('evo-shake-1','evo-shake-2','evo-shake-3');
+      void app.offsetWidth;
+      app.classList.add('evo-shake-' + Math.min(3, step));
+    }
+    n--;
+    timer = setTimeout(tick, EVO_COUNTDOWN_TICK_MS);
+  }
+
+  layer.querySelector('#ecStop').addEventListener('click', () => {
+    if(stopped) return;
+    stopped = true;
+    const r = profile.owned.find(o => o.speciesId === speciesId);
+    if(r) r.evolutionHeld = true;
+    track('evolution_held', { speciesId, level: r ? r.level : null });
+    saveProfile();
+    cleanup();
+    toast(`${sp.name} stayed as it is.`);
+    render();
+  });
+
+  tick();
+}
+
+// Runs the evolution for real, then hands off to the existing level-up /
+// evolution celebration so the reveal is unchanged.
+function finishEvolutionCountdown(speciesId, ctx){
+  const rec = profile.owned.find(o => o.speciesId === speciesId);
+  if(!rec) return;
+  delete rec.evolutionHeld;
+  const beforeLevel = ctx && ctx.beforeLevel != null ? ctx.beforeLevel : rec.level;
+  const beforeHp = ctx && ctx.beforeHp != null ? ctx.beforeHp : statAtLevel(rec.speciesId, 'hp', rec.level);
+  const beforeAtk = ctx && ctx.beforeAtk != null ? ctx.beforeAtk : statAtLevel(rec.speciesId, 'atk', rec.level);
+  const evolution = tryAutoEvolve(rec);
+  saveProfile();
+  track('evolution_confirmed', { speciesId, evolvedTo: evolution ? evolution.speciesId : null });
+  track('level_up', { speciesId, level: rec.level, evolved: !!evolution, evolvedTo: evolution ? evolution.speciesId : null });
+  trackQuestProgress('levelUp', 1);
+  trackMissionProgress('levelUp', 1);
+  if(evolution) trackMissionProgress('evolveEvopals', 1);
+  const afterSpeciesId = evolution ? evolution.speciesId : rec.speciesId;
+  ui.modal = 'creatureLevelUp';
+  ui.evoAnimPlayed = false;
+  ui.levelUpInfo = {
+    speciesId: afterSpeciesId,
+    level: rec.level,
+    evolvedFromId: evolution ? speciesId : null,
+    evolvedFrom: evolution ? SPECIES[speciesId].name : null,
+    evolvedName: evolution ? evolution.name : null,
+    beforeHp, afterHp: statAtLevel(afterSpeciesId, 'hp', rec.level),
+    beforeAtk, afterAtk: statAtLevel(afterSpeciesId, 'atk', rec.level),
+    newSkills: newlyLearnedSkills(speciesId, beforeLevel, afterSpeciesId, rec.level),
+  };
+  render();
+}
+
 function levelUpCreature(speciesId, evt){
   const rec = profile.owned.find(o => o.speciesId === speciesId);
   if(!rec) return;
+  // Evolution was stopped earlier: this record is frozen at its level and the
+  // only thing the button can still do is run the countdown again.
+  if(rec.evolutionHeld){ beginEvolutionCountdown(speciesId, null); return; }
   if(rec.level >= CONFIG.maxCreatureLevel){ toast(`${SPECIES[speciesId].name} is already at max level.`); return; }
   const needed = dupesNeededForLevel(rec.level);
   if(rec.dupes < needed){ toast(`Need ${needed} duplicates to reach Lv ${rec.level+1} (have ${rec.dupes}).`); return; }
@@ -5898,6 +6085,15 @@ function levelUpCreature(speciesId, evt){
   const beforeLevel = rec.level;
   rec.dupes -= needed;
   rec.level += 1;
+  // If this level crosses the evolve threshold, hand off to the countdown
+  // rather than transforming mid-press. The level itself is already banked,
+  // so stopping still leaves them with what they paid for.
+  const spNow = SPECIES[rec.speciesId];
+  if(spNow.evolveInto && spNow.evolveLevel && rec.level >= spNow.evolveLevel){
+    saveProfile();
+    beginEvolutionCountdown(speciesId, { beforeHp, beforeAtk, beforeLevel });
+    return;
+  }
   const evolution = tryAutoEvolve(rec);
   saveProfile();
   track('level_up', { speciesId, level: rec.level, evolved: !!evolution, evolvedTo: evolution ? evolution.speciesId : null });
@@ -7028,6 +7224,7 @@ function defaultBaseState(){
     farm:    { level:0, lastCollectedAt:null },
     library: { level:0 },
     pen:     { level:0, speciesId:null, lastCollectedAt:null },
+    scene:   defaultSceneState(),
   };
 }
 function baseState(){
@@ -7035,10 +7232,11 @@ function baseState(){
   // Defensive per-key fill so a save written before a building existed still
   // loads rather than throwing on an undefined level.
   Object.keys(BASE_BUILDINGS).forEach(k => { if(!profile.base[k]) profile.base[k] = defaultBaseState()[k]; });
+  if(!profile.base.scene) profile.base.scene = defaultSceneState();
   return profile.base;
 }
 function baseLevel(key){ return baseState()[key].level || 0; }
-function baseTabUnlocked(){ return (profile.totalRuns || 0) >= 1; }   // TUNABLE: opens after your first run
+function baseTabUnlocked(){ return (profile.unlockedWorld || 1) >= 3; }   // TUNABLE: opens once World 3 unlocks
 // Buildings arrive one at a time: the next one only appears once the
 // previous one actually exists.
 function baseIsUnlocked(key){
@@ -7113,6 +7311,7 @@ function baseBuild(key){
   const cost = baseUpgradeCost(key);
   if(cost === null){ toast('Already at max level.'); return; }
   if(!baseIsUnlocked(key)){ toast('Not available yet.'); return; }
+  if(!baseGateMet(key)){ toast(`Scene level ${baseBuildGate(key)} needed first.`); return; }
   if((profile.coins || 0) < cost){ toast('Not enough gold.'); return; }
   profile.coins -= cost;
   const st = baseState()[key];
@@ -7173,109 +7372,336 @@ function baseEffectLine(key, level){
   return '';
 }
 
+// ===================== BASE SCENE & COSMETICS =====================
+// The base is drawn as a place rather than a list: a fenced plot, a path
+// looping round a fountain, four building plots. Everything the player can
+// spend on is tappable in the scene itself.
+//
+// Cosmetics are the grind. Each cosmetic track (fountain, path, fence,
+// garden) has tiers; the sum of tiers bought is the SCENE LEVEL, and every
+// building level — including the initial build — is gated on a scene level.
+// So you cannot rush the Library by hoarding gold: the place has to be
+// looked after first. Costs escalate steeply on purpose; a fully finished
+// scene plus maxed buildings is meant to be a long-run gold sink.
+const BASE_SCENE_TRACKS = {
+  fountain: { name:'Fountain', costBase:80,  growth:1.45, tiers:[            // TUNABLE
+    'Cracked and dry', 'Basin repaired', 'Water again', 'A working spout', 'Second bowl',
+    'Twin arcs', 'Flowers at the base', 'A statue on top', 'Lily pads', 'Gold trim', 'Grand fountain' ] },
+  path:     { name:'Path',     costBase:100, growth:1.7,  tiers:[            // TUNABLE
+    'Mud and puddles', 'Packed dirt', 'Gravel', 'Cobblestones', 'Edged flagstone', 'Lantern-lit' ] },
+  fence:    { name:'Fence',    costBase:110, growth:1.7,  tiers:[            // TUNABLE
+    'Falling apart', 'Mended', 'Painted white', 'Hedgerow', 'Stone wall', 'Wall with climbing roses' ] },
+  garden:   { name:'Garden',   costBase:120, growth:1.7,  tiers:[            // TUNABLE
+    'Overgrown weeds', 'A few flowers', 'Flower beds', 'Bushes', 'Trees', 'Lanterns and butterflies' ] },
+};
+// Scene level required to reach each building level: index 0 is the
+// initial build, index 1 is Lv2, and so on. The Library example from the
+// brief — five scene upgrades before it can be built — is baked in here.
+const BASE_BUILDING_GATES = {                                                   // TUNABLE
+  gym:     [0, 3, 6, 12, 18],
+  farm:    [2, 5, 8, 14, 20],
+  library: [5, 8, 11, 16, 22],
+  pen:     [10, 13, 16, 20, 25],
+};
+function defaultSceneState(){ return { fountain:0, path:0, fence:0, garden:0 }; }
+function sceneTier(k){ return (baseState().scene && baseState().scene[k]) || 0; }
+function sceneTrackMax(k){ return BASE_SCENE_TRACKS[k].tiers.length - 1; }
+function sceneLevel(){ return Object.keys(BASE_SCENE_TRACKS).reduce((t,k) => t + sceneTier(k), 0); }
+function sceneMaxLevel(){ return Object.keys(BASE_SCENE_TRACKS).reduce((t,k) => t + sceneTrackMax(k), 0); }
+function sceneUpgradeCost(k){
+  const tier = sceneTier(k);
+  if(tier >= sceneTrackMax(k)) return null;
+  const t = BASE_SCENE_TRACKS[k];
+  return Math.round(t.costBase * Math.pow(t.growth, tier));
+}
+function sceneUpgrade(k){
+  const cost = sceneUpgradeCost(k);
+  if(cost === null){ toast('Already finished.'); return; }
+  if((profile.coins || 0) < cost){ toast('Not enough gold.'); return; }
+  profile.coins -= cost;
+  baseState().scene[k] = sceneTier(k) + 1;
+  track('base_scene_upgrade', { track:k, tier: sceneTier(k), sceneLevel: sceneLevel() });
+  toast(`${BASE_SCENE_TRACKS[k].name}: ${BASE_SCENE_TRACKS[k].tiers[sceneTier(k)]}`);
+  saveProfile();
+  render();
+}
+// Scene level needed for this building's NEXT level (null once maxed).
+function baseBuildGate(key){
+  const gates = BASE_BUILDING_GATES[key];
+  const lvl = baseLevel(key);
+  return lvl < gates.length ? gates[lvl] : null;
+}
+function baseGateMet(key){
+  const g = baseBuildGate(key);
+  return g === null || sceneLevel() >= g;
+}
+function baseSelect(kind, key){
+  ui.baseSel = (ui.baseSel && ui.baseSel.kind === kind && ui.baseSel.key === key) ? null : { kind, key };
+  ui.basePenPicking = false;
+  render();
+}
+
+// ---------- drawing ----------
+const _INK = 'stroke="#23262F" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"';
+function sceneArtGym(x,y){ return `<g transform="translate(${x},${y})">
+  <rect x="0" y="34" width="112" height="56" rx="6" fill="#5A6072" ${_INK}/>
+  <path d="M-4 36 56 4l60 32z" fill="#3B3F55" ${_INK}/>
+  <rect x="34" y="52" width="44" height="38" rx="4" fill="#FFE0A8" ${_INK}/>
+  <path d="M44 72h24" stroke="#23262F" stroke-width="5" stroke-linecap="round"/>
+  <rect x="37" y="64" width="9" height="16" rx="3" fill="#E9714A" ${_INK}/><rect x="66" y="64" width="9" height="16" rx="3" fill="#E9714A" ${_INK}/>
+  <rect x="8" y="50" width="16" height="14" rx="3" fill="#83CBE1" ${_INK}/><rect x="88" y="50" width="16" height="14" rx="3" fill="#83CBE1" ${_INK}/></g>`; }
+function sceneArtFarm(x,y){ return `<g transform="translate(${x},${y})">
+  <rect x="0" y="40" width="104" height="52" rx="6" fill="#F2B705" ${_INK}/>
+  <path d="M-4 42 52 8l56 34z" fill="#C2521F" ${_INK}/>
+  <rect x="36" y="56" width="32" height="36" rx="4" fill="#A0703C" ${_INK}/>
+  <path d="M36 56l32 36M68 56L36 92" stroke="#23262F" stroke-width="2.5"/>
+  <rect x="8" y="58" width="16" height="12" rx="3" fill="#FFF3D8" ${_INK}/>
+  <g transform="translate(112,52)"><path d="M0 40V22h10v18M18 40V22h10v18M36 40V22h10v18" fill="#7CC262" ${_INK}/>
+  <circle cx="5" cy="18" r="6" fill="#E9714A" ${_INK}/><circle cx="23" cy="16" r="6" fill="#E9714A" ${_INK}/><circle cx="41" cy="18" r="6" fill="#E9714A" ${_INK}/></g></g>`; }
+function sceneArtLibrary(x,y){ return `<g transform="translate(${x},${y})">
+  <rect x="0" y="30" width="110" height="62" rx="6" fill="#3E8FE0" ${_INK}/>
+  <path d="M-4 32 55 4l59 28z" fill="#1E5FA0" ${_INK}/>
+  <rect x="14" y="48" width="18" height="44" rx="3" fill="#FFF3D8" ${_INK}/><rect x="40" y="48" width="18" height="44" rx="3" fill="#FFE0A8" ${_INK}/>
+  <rect x="66" y="48" width="18" height="44" rx="3" fill="#FFF3D8" ${_INK}/><rect x="88" y="56" width="12" height="36" rx="3" fill="#FFE0A8" ${_INK}/>
+  <path d="M55 2v-10" stroke="#23262F" stroke-width="3"/><path d="M55 -8h14l-4 4 4 4H55z" fill="#E9714A" ${_INK}/></g>`; }
+function sceneArtPen(x,y){ return `<g transform="translate(${x},${y})">
+  <path d="M0 96V52h118v44z" fill="#9BBC53" ${_INK}/>
+  <path d="M12 96V44M40 96V44M68 96V44M96 96V44M0 58h118M0 76h118" stroke="#23262F" stroke-width="3"/>
+  <path d="M12 44h84" stroke="#A0703C" stroke-width="7" stroke-linecap="round"/>
+  <path d="M22 34q0-14 14-14t14 14" fill="#7CC262" ${_INK}/><path d="M74 36q0-11 11-11t11 11" fill="#63A84A" ${_INK}/>
+  <circle cx="102" cy="26" r="11" fill="#FFD25A" ${_INK}/></g>`; }
+function sceneArtPlot(x,y,w,h){ return `
+  <rect x="${x}" y="${y}" width="${w}" height="${h}" rx="10" fill="#8FB44C" stroke="#4F7A2E" stroke-width="3" stroke-dasharray="8 6"/>
+  <path d="M${x+w*0.25} ${y+h*0.35}h${w*0.5}M${x+w*0.3} ${y+h*0.55}h${w*0.4}M${x+w*0.35} ${y+h*0.75}h${w*0.3}" stroke="#7CA33E" stroke-width="3" stroke-linecap="round"/>`; }
+
+// Cosmetics are cumulative layers: every tier ADDS to what's already there,
+// so ten fountain states cost roughly ten small drawings, not ten fountains.
+function sceneArtFountain(t){
+  const cx = 195, cy = 250;
+  let s = `<ellipse cx="${cx}" cy="${cy}" rx="52" ry="30" fill="${t>=9?'#E8D9B0':'#C8A05C'}" ${_INK}/>`;
+  if(t === 0){
+    s += `<ellipse cx="${cx}" cy="${cy}" rx="34" ry="19" fill="#A9AFBC" ${_INK}/>
+      <path d="M${cx-18} ${cy-6}l10 8-6 7M${cx+6} ${cy-12}l8 10" stroke="#23262F" stroke-width="2.5" fill="none"/>
+      <path d="M${cx-30} ${cy+10}q4-12 10-14M${cx+22} ${cy+12}q0-10 6-14M${cx+30} ${cy-2}q2-9 7-10" stroke="#5E8A3A" stroke-width="3" stroke-linecap="round" fill="none"/>`;
+    return s;
+  }
+  s += `<ellipse cx="${cx}" cy="${cy}" rx="34" ry="19" fill="${t>=2?'#83CBE1':'#C9CEDA'}" ${_INK}/>`;
+  if(t >= 2) s += `<ellipse cx="${cx}" cy="${cy-4}" rx="10" ry="5" fill="#B7E3F2" ${_INK}/>`;
+  if(t >= 3) s += `<rect x="${cx-5}" y="${cy-30}" width="10" height="26" rx="3" fill="#C9CEDA" ${_INK}/><path d="M${cx-7} ${cy-30}q7-9 14 0" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round"/>`;
+  if(t >= 4) s += `<ellipse cx="${cx}" cy="${cy-30}" rx="18" ry="8" fill="#83CBE1" ${_INK}/>`;
+  if(t >= 5) s += `<path d="M${cx-22} ${cy-8}q10-24 22-30M${cx+22} ${cy-8}q-10-24-22-30" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round"/>`;
+  if(t >= 6) s += `<g fill="#F49BC0" stroke="#23262F" stroke-width="2.4"><circle cx="${cx-46}" cy="${cy+18}" r="6"/><circle cx="${cx+46}" cy="${cy+18}" r="6"/><circle cx="${cx-38}" cy="${cy-16}" r="6"/><circle cx="${cx+38}" cy="${cy-16}" r="6"/></g>`;
+  if(t >= 7) s += `<rect x="${cx-4}" y="${cy-52}" width="8" height="22" rx="2" fill="#C9CEDA" ${_INK}/><path d="M${cx} ${cy-66}q8 6 4 16h-8q-4-10 4-16z" fill="#FF7A45" ${_INK}/>`;
+  if(t >= 8) s += `<g fill="#63A84A" stroke="#23262F" stroke-width="2"><ellipse cx="${cx-18}" cy="${cy+6}" rx="7" ry="4"/><ellipse cx="${cx+16}" cy="${cy+8}" rx="7" ry="4"/></g>`;
+  if(t >= 9) s += `<ellipse cx="${cx}" cy="${cy}" rx="52" ry="30" fill="none" stroke="#F2B705" stroke-width="3" stroke-dasharray="6 5"/>`;
+  if(t >= 10) s += `<g fill="#FFD25A" stroke="#23262F" stroke-width="2"><path d="M${cx-60} ${cy-40}l3 8 8 3-8 3-3 8-3-8-8-3 8-3z"/><path d="M${cx+58} ${cy-44}l3 8 8 3-8 3-3 8-3-8-8-3 8-3z"/><path d="M${cx+4} ${cy-84}l3 7 7 3-7 3-3 7-3-7-7-3 7-3z"/></g>`;
+  return s;
+}
+function sceneArtPath(t){
+  const d = "M195 620V520q0-30 40-32t60 0q22-2 22-28V270q0-26-26-26H120q-26 0-26 26v180q0 24 26 26h44q31 0 31 32V620z";
+  const fill = t === 0 ? '#8A6A3C' : t === 1 ? '#C8A05C' : t === 2 ? '#C9B98F' : t === 3 ? '#B9A48C' : '#CFC8BC';
+  let s = `<path d="${d}" fill="${fill}" stroke="#23262F" stroke-width="3" stroke-linejoin="round"/>`;
+  if(t === 0) s += `<g fill="#6E5430"><ellipse cx="140" cy="300" rx="14" ry="6"/><ellipse cx="250" cy="420" rx="16" ry="6"/><ellipse cx="200" cy="560" rx="12" ry="5"/></g>`;
+  if(t === 2) s += `<g fill="#A89670"><circle cx="130" cy="290" r="2.5"/><circle cx="152" cy="330" r="2.5"/><circle cx="262" cy="300" r="2.5"/><circle cx="240" cy="380" r="2.5"/><circle cx="200" cy="540" r="2.5"/><circle cx="212" cy="590" r="2.5"/><circle cx="110" cy="420" r="2.5"/><circle cx="270" cy="450" r="2.5"/></g>`;
+  if(t === 3 || t === 4) s += `<path d="M104 280h20M104 310h20M104 340h20M104 370h20M104 400h20M104 430h20M266 280h20M266 310h20M266 340h20M266 370h20M266 400h20M266 430h20M185 540h20M185 570h20M185 600h20" stroke="#8F7A60" stroke-width="2.5" stroke-linecap="round"/>`;
+  if(t >= 4) s += `<path d="${d}" fill="none" stroke="#8F7A60" stroke-width="7" opacity=".5"/><path d="${d}" fill="none" stroke="#23262F" stroke-width="3" stroke-linejoin="round"/>`;
+  if(t >= 5) s += `<g><rect x="86" y="470" width="6" height="30" fill="#3B3F55" ${_INK}/><circle cx="89" cy="466" r="8" fill="#FFD25A" ${_INK}/><rect x="298" y="470" width="6" height="30" fill="#3B3F55" ${_INK}/><circle cx="301" cy="466" r="8" fill="#FFD25A" ${_INK}/></g>`;
+  return s;
+}
+function sceneArtFence(t){
+  const posts = [30,80,130,180,230,280,330,370];
+  if(t === 0){
+    return `<path d="M8 12h374M8 608h374M8 12v596M382 12v596" stroke="#A0703C" stroke-width="7" stroke-linecap="round" stroke-dasharray="40 22"/>
+      ${posts.map((x,i)=>`<rect x="${x-4}" y="${i%3===0?8:4}" width="8" height="18" rx="3" fill="#8A6A3C" ${_INK} transform="rotate(${i%2?9:-11} ${x} 12)"/>`).join('')}`;
+  }
+  const col = t >= 4 ? '#9A9CA8' : t === 2 ? '#F3F1EA' : '#A0703C';
+  let s = `<path d="M8 12h374M8 608h374M8 12v596M382 12v596" stroke="${col}" stroke-width="${t>=4?10:7}" stroke-linecap="round"/>
+    <path d="M8 12h374M8 608h374M8 12v596M382 12v596" stroke="#23262F" stroke-width="2.5" fill="none" opacity=".85"/>`;
+  if(t < 4) s += posts.map(x=>`<rect x="${x-4}" y="4" width="8" height="18" rx="3" fill="${t===2?'#fff':'#C8A05C'}" ${_INK}/><rect x="${x-4}" y="600" width="8" height="18" rx="3" fill="${t===2?'#fff':'#C8A05C'}" ${_INK}/>`).join('');
+  if(t >= 3) s += `<path d="M8 12h374M8 608h374" stroke="#4F924D" stroke-width="12" stroke-linecap="round" opacity=".9"/>`;
+  if(t >= 5) s += `<g fill="#E5533D" stroke="#23262F" stroke-width="2"><circle cx="60" cy="12" r="5"/><circle cx="150" cy="12" r="5"/><circle cx="240" cy="12" r="5"/><circle cx="330" cy="12" r="5"/><circle cx="100" cy="608" r="5"/><circle cx="290" cy="608" r="5"/></g>`;
+  return s;
+}
+function sceneArtGarden(t){
+  let s = '';
+  if(t === 0) s += `<g stroke="#5E8A3A" stroke-width="3" stroke-linecap="round" fill="none"><path d="M40 560q4-14 10-18M52 570q0-12 6-16M300 550q4-14 10-18M330 585q2-12 8-16M120 575q3-10 8-13M260 560q2-10 7-12"/></g>`;
+  if(t >= 1) s += `<g fill="#F49BC0" stroke="#23262F" stroke-width="2.4"><circle cx="112" cy="560" r="6"/><circle cx="290" cy="548" r="6"/></g><g fill="#fff"><circle cx="112" cy="560" r="2"/><circle cx="290" cy="548" r="2"/></g>`;
+  if(t >= 2) s += `<g><rect x="24" y="540" width="60" height="26" rx="8" fill="#8A5A32" ${_INK}/><rect x="306" y="540" width="60" height="26" rx="8" fill="#8A5A32" ${_INK}/>
+    <g fill="#FFD25A" stroke="#23262F" stroke-width="2"><circle cx="38" cy="550" r="5"/><circle cx="54" cy="552" r="5"/><circle cx="70" cy="550" r="5"/><circle cx="320" cy="550" r="5"/><circle cx="336" cy="552" r="5"/><circle cx="352" cy="550" r="5"/></g></g>`;
+  if(t >= 3) s += `<path d="M118 594q-12-14 2-22t20 4q6-12 18-4t6 22z" fill="#63A84A" ${_INK}/><path d="M236 594q-12-14 2-22t20 4q6-12 18-4t6 22z" fill="#63A84A" ${_INK}/>`;
+  if(t >= 4) s += `<g><rect x="38" y="480" width="10" height="26" rx="3" fill="#A0703C" ${_INK}/><circle cx="43" cy="470" r="24" fill="#63A84A" ${_INK}/><circle cx="52" cy="462" r="15" fill="#7CC262" stroke="#23262F" stroke-width="2.5"/></g>
+    <g><rect x="340" y="480" width="10" height="26" rx="3" fill="#8A5A32" ${_INK}/><circle cx="345" cy="468" r="26" fill="#4F924D" ${_INK}/></g>`;
+  if(t >= 5) s += `<g><rect x="24" y="230" width="6" height="26" fill="#3B3F55" ${_INK}/><circle cx="27" cy="226" r="7" fill="#FFD25A" ${_INK}/><rect x="360" y="230" width="6" height="26" fill="#3B3F55" ${_INK}/><circle cx="363" cy="226" r="7" fill="#FFD25A" ${_INK}/></g>
+    <g fill="#F2B705" stroke="#23262F" stroke-width="2"><path d="M150 200q-8-10-4-16t8 2q4-8 8-2t-4 16z"/><path d="M300 520q-8-10-4-16t8 2q4-8 8-2t-4 16z"/></g>`;
+  return s;
+}
+
+const BASE_PLOTS = { gym:[22,74,150,118], farm:[214,74,158,118], library:[22,318,150,118], pen:[214,318,158,118] };
+
+function sceneLabel(x, y, text, bg){
+  const w = text.length * 6.6 + 16;
+  return `<g><rect x="${x - w/2}" y="${y-10}" width="${w}" height="20" rx="10" fill="${bg}" ${_INK}/>
+    <text x="${x}" y="${y+4}" text-anchor="middle" font-family="Manrope,sans-serif" font-weight="800" font-size="11" fill="#fff">${text}</text></g>`;
+}
+function sceneSign(x, y, line1, line2, locked){
+  const w = Math.max(line1.length, line2.length) * 6 + 22;
+  return `<g><rect x="${x-w/2}" y="${y-20}" width="${w}" height="40" rx="9" fill="${locked?'#D9DCE5':'#FFF3D8'}" ${_INK}/>
+    <rect x="${x-w/2+3}" y="${y+18}" width="${w-6}" height="3" rx="1.5" fill="#23262F" opacity=".35"/>
+    <text x="${x}" y="${y-4}" text-anchor="middle" font-family="'Baloo 2',sans-serif" font-weight="800" font-size="12" fill="${locked?'#5A6072':'#23262F'}">${line1}</text>
+    <text x="${x}" y="${y+11}" text-anchor="middle" font-family="Manrope,sans-serif" font-weight="800" font-size="9.5" fill="${locked?'#5A6072':'#6B7080'}">${line2}</text></g>`;
+}
+function sceneBubble(x, y, inner){
+  return `<g class="base-bob"><circle cx="${x}" cy="${y}" r="19" fill="#fff" ${_INK}/>
+    <path d="M${x-6} ${y+16}l6 8 6-8z" fill="#fff" stroke="#23262F" stroke-width="3" stroke-linejoin="round"/>
+    <rect x="${x-8}" y="${y+12}" width="16" height="6" fill="#fff"/>${inner}</g>`;
+}
+
+function renderBaseScene(){
+  const sel = ui.baseSel;
+  const art = { gym:sceneArtGym, farm:sceneArtFarm, library:sceneArtLibrary, pen:sceneArtPen };
+  const offs = { gym:[18,14], farm:[4,12], library:[18,18], pen:[20,14] };
+  const hit = (kind, key, x, y, w, h) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="12" fill="transparent" ${sel && sel.kind===kind && sel.key===key ? 'stroke="#F2B705" stroke-width="4" stroke-dasharray="10 6"' : ''} onclick="baseSelect('${kind}','${key}')" style="cursor:pointer;"/>`;
+
+  let s = `<svg viewBox="0 0 390 620" preserveAspectRatio="xMidYMid slice" style="display:block; width:100%; height:100%;">
+    <defs><pattern id="baseGrass" width="26" height="26" patternUnits="userSpaceOnUse"><rect width="26" height="26" fill="#9BBC53"/><path d="M6 20q2-8 6-11M19 22q1-7 4-10" stroke="#8FB44C" stroke-width="2.5" stroke-linecap="round" fill="none"/></pattern></defs>
+    <rect width="390" height="620" fill="url(#baseGrass)"/>
+    ${sceneArtFence(sceneTier('fence'))}
+    ${sceneArtPath(sceneTier('path'))}
+    ${sceneArtGarden(sceneTier('garden'))}
+    ${sceneArtFountain(sceneTier('fountain'))}`;
+
+  // buildings and plots
+  Object.keys(BASE_PLOTS).forEach(key => {
+    const [x,y,w,h] = BASE_PLOTS[key];
+    const lvl = baseLevel(key);
+    if(lvl){
+      s += art[key](x + offs[key][0], y + offs[key][1]);
+      s += sceneLabel(x + w - 34, y + 2, 'Lv ' + lvl, '#FF7A45');
+      const pending = (key === 'farm' || key === 'pen') ? basePending(key) : null;
+      if(pending && pending.units > 0){
+        s += sceneBubble(x + w/2 - 10, y - 18, key === 'farm'
+          ? `<circle cx="${x + w/2 - 10}" cy="${y - 18}" r="9" fill="#F2B705" ${_INK}/>`
+          : `<path d="M${x + w/2 - 10} ${y-28}l3 7 7 3-7 3-3 7-3-7-7-3 7-3z" fill="#FFD25A" ${_INK}/>`);
+      }
+      if(key === 'pen' && baseState().pen.speciesId && CREATURE_ART[baseState().pen.speciesId] && CREATURE_ART[baseState().pen.speciesId].asleep){
+        s += `<image href="${CREATURE_ART[baseState().pen.speciesId].asleep}" x="${x+26}" y="${y+34}" width="72" height="72"/>`;
+      }
+    } else {
+      s += sceneArtPlot(x, y, w, h);
+      const name = BASE_BUILDINGS[key].name;
+      if(!baseIsUnlocked(key)){
+        const prev = BASE_BUILDINGS[BASE_ORDER[BASE_BUILDINGS[key].order - 2]].name;
+        s += sceneSign(x + w/2, y + h/2, '🔒 ' + name, 'Build the ' + prev + ' first', true);
+      } else if(!baseGateMet(key)){
+        s += sceneSign(x + w/2, y + h/2, '🔒 ' + name, 'Scene level ' + baseBuildGate(key) + ' needed', true);
+      } else {
+        s += sceneSign(x + w/2, y + h/2, '🔨 Build ' + name, baseUpgradeCost(key) + ' gold', false);
+      }
+    }
+    s += hit('b', key, x, y, w, h);
+  });
+
+  // the starter, out on the path
+  const starter = (profile.activeSquad || [])[0];
+  if(starter && CREATURE_ART[starter] && CREATURE_ART[starter].battleFront){
+    s += `<image href="${CREATURE_ART[starter].battleFront}" x="150" y="470" width="96" height="96"/>`;
+  }
+
+  // cosmetic hit areas
+  s += hit('s', 'fountain', 135, 190, 120, 95);
+  s += hit('s', 'path', 165, 505, 60, 110);
+  s += hit('s', 'fence', 0, 0, 390, 34);
+  s += hit('s', 'garden', 14, 520, 362, 90);
+  s += `</svg>`;
+  return s;
+}
+
+function renderBaseSheet(){
+  const sel = ui.baseSel;
+  if(!sel) return '';
+  const close = `<button class="btn" style="flex:none; padding:8px 12px;" onclick="ui.baseSel=null; render();">✕</button>`;
+
+  if(sel.kind === 's'){
+    const k = sel.key, t = BASE_SCENE_TRACKS[k], tier = sceneTier(k), max = sceneTrackMax(k), cost = sceneUpgradeCost(k);
+    const affordable = cost !== null && (profile.coins || 0) >= cost;
+    return `<div class="base-sheet">
+      <div class="row" style="justify-content:space-between; align-items:flex-start; gap:8px;">
+        <div style="min-width:0;">
+          <div class="display" style="font-size:17px;">${t.name} <span style="color:#8A8F9E; font-size:13px; font-weight:700;">· ${tier}/${max}</span></div>
+          <div class="muted" style="font-size:11.5px; margin-top:2px;">Now: ${t.tiers[tier]}</div>
+          ${cost !== null ? `<div style="font-size:12px; font-weight:800; color:var(--action-blue); margin-top:4px;">Next: ${t.tiers[tier+1]}</div>` : ''}
+        </div>${close}
+      </div>
+      <div style="margin-top:10px;">
+        ${cost === null
+          ? `<button class="btn btn-disabled" style="width:100%; padding:10px;" disabled>Finished</button>`
+          : `<button class="btn ${affordable?'btn-primary':'btn-disabled'}" style="width:100%; padding:10px;" ${affordable?`onclick="sceneUpgrade('${k}')"`:'disabled'}>Improve — ${cost} gold</button>`}
+      </div>
+    </div>`;
+  }
+
+  const key = sel.key, b = BASE_BUILDINGS[key], lvl = baseLevel(key);
+  const cost = baseUpgradeCost(key), maxed = cost === null;
+  const gate = baseBuildGate(key), gateOk = baseGateMet(key), orderOk = baseIsUnlocked(key);
+  const affordable = !maxed && (profile.coins || 0) >= cost;
+  const producer = (key === 'farm' || key === 'pen') && lvl > 0;
+  const pending = producer ? basePending(key) : null;
+  const penSpecies = key === 'pen' ? baseState().pen.speciesId : null;
+  let cta;
+  if(maxed) cta = `<button class="btn btn-disabled" style="width:100%; padding:10px;" disabled>Max level</button>`;
+  else if(!orderOk) cta = `<button class="btn btn-disabled" style="width:100%; padding:10px;" disabled>Build the ${BASE_BUILDINGS[BASE_ORDER[b.order-2]].name} first</button>`;
+  else if(!gateOk) cta = `<button class="btn btn-disabled" style="width:100%; padding:10px;" disabled>Needs scene level ${gate} (you're at ${sceneLevel()})</button>`;
+  else cta = `<button class="btn ${affordable?'btn-primary':'btn-disabled'}" style="width:100%; padding:10px;" ${affordable?`onclick="baseBuild('${key}')"`:'disabled'}>${lvl?'Upgrade':'Build'} — ${cost} gold</button>`;
+  const nextGate = (!maxed && gate !== null && lvl > 0) ? `<div class="muted" style="font-size:10.5px; margin-top:5px;">Lv ${lvl+1} needs scene level ${gate}${gateOk ? ' ✓' : ''}</div>` : '';
+
+  return `<div class="base-sheet">
+    <div class="row" style="justify-content:space-between; align-items:flex-start; gap:8px;">
+      <div style="min-width:0;">
+        <div class="display" style="font-size:17px;">${b.name} ${lvl ? `<span style="color:#8A8F9E; font-size:13px; font-weight:700;">· Lv ${lvl}</span>` : ''}</div>
+        <div class="muted" style="font-size:11.5px; margin-top:2px;">${b.blurb}</div>
+        ${lvl ? `<div style="font-size:12px; font-weight:800; color:var(--action-blue); margin-top:4px;">${baseEffectLine(key, lvl)}</div>` : ''}
+        ${nextGate}
+      </div>${close}
+    </div>
+    ${key === 'pen' && lvl > 0 ? `
+      <div class="row" style="justify-content:space-between; gap:8px; margin-top:10px;">
+        <div class="row" style="gap:8px; min-width:0;">${penSpecies ? cardArt(penSpecies, 30) : ''}<div><div class="muted" style="font-size:10.5px; font-weight:800; letter-spacing:.03em;">ROAMING</div><div style="font-weight:800; font-size:13px;">${penSpecies ? SPECIES[penSpecies].name : 'Nobody yet'}</div></div></div>
+        <button class="btn" style="flex:none; padding:7px 12px; font-size:12px;" onclick="ui.basePenPicking=!ui.basePenPicking; render();">Change</button>
+      </div>
+      ${ui.basePenPicking ? `<div style="display:flex; gap:8px; overflow-x:auto; padding:10px 2px 2px;">${(profile.owned||[]).map(o=>`<button class="btn" style="flex:none; padding:6px; ${o.speciesId===penSpecies?'box-shadow:0 0 0 3px var(--ember), 0 3px 0 var(--ink);':''}" onclick="basePenAssign('${o.speciesId}')">${cardArt(o.speciesId,34)}</button>`).join('')}</div>` : ''}` : ''}
+    ${producer ? `
+      <div class="row" style="gap:10px; margin-top:10px;">
+        <div style="flex:1; min-width:0;"><div style="height:12px; border-radius:999px; border:3px solid var(--ink); background:var(--surface-raised); overflow:hidden;"><div style="height:100%; width:${Math.round(pending.pct*100)}%; background:${pending.capped?'var(--ember)':'var(--verdant)'};"></div></div>
+        <div class="muted" style="font-size:10.5px; margin-top:4px;">${pending.capped ? 'Full — collect to keep producing' : 'Stores up to ' + baseCapHours(key) + 'h'}</div></div>
+        <button class="btn ${pending.units>0?'btn-primary':'btn-disabled'}" style="flex:none; padding:9px 14px; font-size:12.5px;" ${pending.units>0?`onclick="baseCollect('${key}')"`:'disabled'}>${pending.units>0 ? 'Collect ' + pending.units + (key==='farm'?'':'×') : 'Collect'}</button>
+      </div>` : ''}
+    <div style="margin-top:10px;">${cta}</div>
+  </div>`;
+}
+
 function renderBaseTab(){
   if(!baseTabUnlocked()){
     return `<div class="screen no-anim center-text" style="justify-content:center;">
       <div>${lockIcon(40)}</div>
       <div class="display" style="font-size:20px; margin-top:6px;">Your Base</div>
-      <div class="muted" style="margin-top:6px;">Finish a run to start building.</div>
+      <div class="muted" style="margin-top:6px;">Unlocks at World 3.</div>
     </div>`;
   }
-  return `<div class="screen no-anim">
-    <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:4px;">
-      <div>
-        <div class="display" style="font-size:20px;">Your Base</div>
-        <div class="muted" style="font-size:12px;">Spend gold here. Everything you build is permanent.</div>
+  const lv = sceneLevel(), mx = sceneMaxLevel();
+  return `<div class="screen no-anim" style="padding:0; overflow:hidden;">
+    <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; padding:10px 14px 8px;">
+      <div style="min-width:0; flex:1;">
+        <div class="row" style="justify-content:space-between;"><span class="display" style="font-size:15px;">Scene</span><span style="font-size:12px; font-weight:800;">${lv} / ${mx}</span></div>
+        <div style="height:10px; border-radius:999px; border:3px solid var(--ink); background:var(--surface-raised); overflow:hidden; margin-top:4px;"><div style="height:100%; width:${Math.round(100*lv/mx)}%; background:var(--gold);"></div></div>
       </div>
       <div class="stat-pill" style="flex:none;"><span class="coin-icn" style="background:none;border:none;padding:0;">${goldIcon(20)}</span>${profile.coins || 0}</div>
     </div>
-
-    <div style="display:flex; flex-direction:column; gap:12px; margin-top:12px;">
-      ${BASE_ORDER.map(key => {
-        const b = BASE_BUILDINGS[key];
-        const lvl = baseLevel(key);
-        const unlocked = baseIsUnlocked(key);
-        const cost = baseUpgradeCost(key);
-        const maxed = cost === null;
-        const affordable = !maxed && (profile.coins || 0) >= cost;
-
-        if(!unlocked){
-          const prev = BASE_BUILDINGS[BASE_ORDER[b.order - 2]].name;
-          return `<div class="creature-tile" style="padding:14px; opacity:.65;">
-            <div style="display:flex; align-items:center; gap:12px;">
-              <div style="width:76px; flex:none; filter:grayscale(1); opacity:.5;">${baseBuildingArt(key)}</div>
-              <div style="min-width:0;">
-                <div class="display" style="font-size:16px;">${lockIcon(14)} ${b.name}</div>
-                <div class="muted" style="font-size:11.5px; margin-top:3px;">Build the ${prev} first.</div>
-              </div>
-            </div>
-          </div>`;
-        }
-
-        const producer = key === 'farm' || key === 'pen';
-        const pending = producer && lvl > 0 ? basePending(key) : null;
-        const penSpecies = key === 'pen' ? baseState().pen.speciesId : null;
-
-        return `<div class="creature-tile" style="padding:14px;">
-          <div style="display:flex; align-items:flex-start; gap:12px;">
-            <div style="width:76px; flex:none;">${baseBuildingArt(key)}</div>
-            <div style="flex:1; min-width:0;">
-              <div style="display:flex; align-items:center; justify-content:space-between; gap:8px;">
-                <div class="display" style="font-size:16px;">${b.name}</div>
-                <span style="background:${lvl ? 'var(--ember)' : 'var(--surface-line)'}; color:#fff; font-size:11px; font-weight:800; padding:2px 8px; border-radius:10px; border:2px solid var(--ink);">${lvl ? 'Lv ' + lvl : 'Not built'}</span>
-              </div>
-              <div class="muted" style="font-size:11.5px; margin-top:4px;">${b.blurb}</div>
-              ${lvl ? `<div style="font-size:12px; font-weight:800; margin-top:5px; color:var(--action-blue);">${baseEffectLine(key, lvl)}</div>` : ''}
-            </div>
-          </div>
-
-          ${key === 'pen' && lvl > 0 ? `
-            <div class="divider" style="margin:11px 0 9px;"></div>
-            <div style="display:flex; align-items:center; justify-content:space-between; gap:8px;">
-              <div style="display:flex; align-items:center; gap:8px; min-width:0;">
-                ${penSpecies ? cardArt(penSpecies, 30) : ''}
-                <div style="min-width:0;">
-                  <div class="muted" style="font-size:10.5px; letter-spacing:.03em; font-weight:800;">ROAMING</div>
-                  <div style="font-weight:800; font-size:13px;">${penSpecies ? SPECIES[penSpecies].name : 'Nobody yet'}</div>
-                </div>
-              </div>
-              <button class="btn" style="flex:none; padding:7px 12px; font-size:12px;" onclick="ui.basePenPicking = !ui.basePenPicking; render();">Change</button>
-            </div>
-            ${ui.basePenPicking ? `<div style="display:flex; gap:8px; overflow-x:auto; padding:10px 2px 2px;">
-              ${(profile.owned || []).map(o => `<button class="btn" style="flex:none; padding:6px; ${o.speciesId === penSpecies ? 'box-shadow:0 0 0 3px var(--ember), 0 3px 0 var(--ink);' : ''}" onclick="basePenAssign('${o.speciesId}')">
-                ${cardArt(o.speciesId, 34)}
-              </button>`).join('') || '<span class="muted" style="font-size:11.5px;">No Evopals yet.</span>'}
-            </div>` : ''}
-          ` : ''}
-
-          ${producer && lvl > 0 ? `
-            <div class="divider" style="margin:11px 0 9px;"></div>
-            <div style="display:flex; align-items:center; gap:10px;">
-              <div style="flex:1; min-width:0;">
-                <div style="height:12px; border-radius:999px; border:3px solid var(--ink); background:var(--surface-raised); overflow:hidden;">
-                  <div style="height:100%; width:${Math.round(pending.pct * 100)}%; background:${pending.capped ? 'var(--ember)' : 'var(--verdant)'};"></div>
-                </div>
-                <div class="muted" style="font-size:10.5px; margin-top:4px;">
-                  ${pending.capped ? 'Full — collect to keep producing' : `Stores up to ${baseCapHours(key)}h`}
-                </div>
-              </div>
-              <button class="btn ${pending.units > 0 ? 'btn-primary' : 'btn-disabled'}" style="flex:none; padding:9px 14px; font-size:12.5px;" ${pending.units > 0 ? `onclick="baseCollect('${key}')"` : 'disabled'}>
-                ${pending.units > 0 ? `Collect ${pending.units}${key === 'farm' ? '' : '×'}` : 'Collect'}
-              </button>
-            </div>
-          ` : ''}
-
-          <div style="margin-top:11px;">
-            ${maxed
-              ? `<button class="btn btn-disabled" style="width:100%; padding:10px;" disabled>Max level</button>`
-              : `<button class="btn ${affordable ? 'btn-primary' : 'btn-disabled'}" style="width:100%; padding:10px;" ${affordable ? `onclick="baseBuild('${key}')"` : 'disabled'}>
-                  ${lvl ? 'Upgrade' : 'Build'} — ${cost} gold
-                </button>`}
-          </div>
-        </div>`;
-      }).join('')}
+    <div style="flex:1; min-height:0; position:relative; border-top:3px solid var(--ink); overflow:hidden;">
+      ${renderBaseScene()}
+      ${ui.baseSel
+        ? `<div style="position:absolute; left:12px; right:12px; bottom:12px;">${renderBaseSheet()}</div>`
+        : `<div style="position:absolute; left:50%; top:10px; transform:translateX(-50%); background:rgba(35,38,47,.9); color:#fff; font-size:11.5px; font-weight:700; padding:6px 12px; border-radius:999px; white-space:nowrap;">Tap a building, the fountain, path, fence or garden</div>`}
     </div>
-    <div class="muted" style="font-size:11.5px; margin-top:14px;">Gym and Library bonuses apply to every Evopal, in every run.</div>
   </div>`;
 }
 
