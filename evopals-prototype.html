@@ -377,6 +377,15 @@
     box-shadow:0 4px 10px rgba(0,0,0,.35);
   }
   .lock-tooltip.hint-tooltip{ white-space:normal; max-width:210px; text-align:center; font-size:12px; line-height:1.35; }
+  /* An explicit width, not max-width: this bubble is anchored over the enemy
+     sprite in the top-right, and a shrink-to-fit fixed element that close to
+     the viewport edge lays out into the few px of space remaining to its
+     right (the -50% translate is applied after layout), squashing the text
+     into a one-word-per-line column. */
+  .lock-tooltip.type-tooltip{
+    white-space:normal; width:208px; max-width:none; box-sizing:border-box;
+    text-align:center; font-size:12px; line-height:1.4;
+  }
   .lock-tooltip.visible{ opacity:1; transform:translate(-50%, -112%); }
   .lock-tooltip-arrow{
     position:absolute; bottom:-6px; left:50%; transform:translateX(-50%);
@@ -900,6 +909,74 @@
   /* cardpop's keyframes use a bare scale(), which would wipe the -50% X
      centering on these two — this variant keeps the translate. */
   @keyframes eiPopCentered{ from{ transform:translateX(-50%) scale(.6); opacity:0; } to{ transform:translateX(-50%) scale(1); opacity:1; } }
+  /* Tap affordance. Lives in the bottom-right of whichever panel is current
+     (the caption occupies bottom-left), moved between panels as the story
+     advances rather than duplicated per panel. */
+  #evo-intro .ei-hint{
+    position:absolute; right:10px; bottom:9px; z-index:4; width:34px; height:34px;
+    border-radius:50%; background:var(--surface); border:3px solid var(--ink);
+    box-shadow:0 3px 0 var(--ink); display:flex; align-items:center; justify-content:center;
+    font-family:'Baloo 2',sans-serif; font-weight:800; font-size:17px; line-height:1;
+    color:var(--ink); opacity:0; pointer-events:none;
+  }
+  #evo-intro .ei-hint.on{ animation:eiHintPulse 1.5s ease-in-out infinite; }
+  @keyframes eiHintPulse{
+    0%,100%{ opacity:.45; transform:translateY(0); }
+    50%{ opacity:1; transform:translateY(3px); }
+  }
+  /* ---- evolution countdown ---- */
+  #evo-countdown{ z-index:210; overflow:hidden; }
+  #evo-countdown .ec-backdrop{
+    position:absolute; inset:0; background:rgba(8,9,16,.55);
+    transition:background .45s ease;
+  }
+  #evo-countdown.ec-s2 .ec-backdrop{ background:rgba(8,9,16,.78); }
+  #evo-countdown.ec-s3 .ec-backdrop{ background:rgba(6,6,12,.92); }
+  #evo-countdown .ec-rays{
+    position:absolute; left:50%; top:38%; width:560px; height:560px;
+    transform:translate(-50%,-50%); mix-blend-mode:screen; opacity:.35;
+    transition:opacity .45s ease;
+  }
+  #evo-countdown.ec-s2 .ec-rays{ opacity:.6; }
+  #evo-countdown.ec-s3 .ec-rays{ opacity:.9; }
+  #evo-countdown .ec-rays-spin{
+    width:100%; height:100%; border-radius:50%;
+    background:conic-gradient(from 0deg, rgba(255,122,69,.75) 0 6deg, transparent 6deg 45deg);
+    animation:captureRaysSpin 2.4s linear infinite;
+  }
+  #evo-countdown.ec-s3 .ec-rays-spin{ animation-duration:.9s; }
+  #evo-countdown .ec-body{
+    position:absolute; inset:0; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; gap:8px; padding:24px; text-align:center;
+  }
+  #evo-countdown .ec-art{
+    filter:drop-shadow(0 0 18px rgba(255,150,70,.8));
+    animation:ecBreathe 1s ease-in-out infinite;
+  }
+  @keyframes ecBreathe{ 0%,100%{ transform:scale(1); } 50%{ transform:scale(1.07); } }
+  #evo-countdown.ec-s3 .ec-art{ animation-duration:.45s; filter:drop-shadow(0 0 30px rgba(255,200,90,1)); }
+  #evo-countdown .ec-title{ font-family:'Baloo 2',sans-serif; font-weight:800; font-size:21px; color:#fff; }
+  #evo-countdown .ec-sub{ font-size:13px; font-weight:700; color:var(--ember); margin-top:-4px; }
+  #evo-countdown .ec-count{
+    font-family:'Baloo 2',sans-serif; font-weight:800; font-size:76px; line-height:1;
+    color:#fff; text-shadow:0 4px 0 #A8461A, 0 0 26px rgba(255,150,70,.9); margin:2px 0 6px;
+  }
+  #evo-countdown .ec-count.pop{ animation:ecCountPop .5s cubic-bezier(.2,1.5,.4,1); }
+  @keyframes ecCountPop{ 0%{ transform:scale(2.1); opacity:0; } 55%{ transform:scale(.92); opacity:1; } 100%{ transform:scale(1); opacity:1; } }
+  #evo-countdown .ec-stop{
+    background:#E5533D; color:#fff; border-color:var(--ink);
+    box-shadow:0 4px 0 #8C2C1B; padding:13px 44px; font-size:16px;
+  }
+  #evo-countdown .ec-stop:active{ transform:translateY(3px); box-shadow:0 1px 0 #8C2C1B; }
+  #evo-countdown .ec-warn{ font-size:11.5px; color:#C9CEDA; max-width:250px; margin-top:8px; line-height:1.35; }
+  /* Shake lives on #app, which render() never replaces (it only clears its
+     innerHTML), so a redraw mid-countdown can't drop the effect. */
+  @keyframes evoShake1{ 0%,100%{ transform:translate(0,0); } 25%{ transform:translate(-2px,1px); } 75%{ transform:translate(2px,-1px); } }
+  @keyframes evoShake2{ 0%,100%{ transform:translate(0,0); } 20%{ transform:translate(-4px,2px); } 60%{ transform:translate(4px,-2px); } 80%{ transform:translate(-3px,-1px); } }
+  @keyframes evoShake3{ 0%,100%{ transform:translate(0,0); } 15%{ transform:translate(-7px,3px); } 40%{ transform:translate(7px,-3px); } 65%{ transform:translate(-5px,-3px); } 85%{ transform:translate(5px,2px); } }
+  #app.evo-shake-1{ animation:evoShake1 .5s ease-in-out 2; }
+  #app.evo-shake-2{ animation:evoShake2 .4s ease-in-out 3; }
+  #app.evo-shake-3{ animation:evoShake3 .28s ease-in-out 4; }
   #evo-intro .ei-skip{
     position:absolute; top:14px; right:14px; z-index:40; background:var(--surface);
     border:3px solid var(--ink); border-radius:999px; padding:5px 13px;
@@ -1028,6 +1105,7 @@ function playFirstOpenIntro(){
       </div>
       <button class="btn btn-primary ei-continue">Continue</button>
     </div>
+    <div class="ei-hint">\u25BE</div>
     <button class="ei-skip">Skip</button>`;
   document.body.appendChild(layer);
 
@@ -1064,16 +1142,34 @@ function playFirstOpenIntro(){
     }
   }
 
+  // The story is paced by the player, so the prompt only appears once the
+  // beat's own animation has settled — showing it instantly would read as
+  // "hurry up" over art that's still moving.
+  const hint = q('.ei-hint');
+  let hintTimer = null;
+  function hintOn(panelSel){
+    clearTimeout(hintTimer);
+    hintTimer = setTimeout(() => {
+      q(panelSel).appendChild(hint);
+      hint.classList.add('on');
+    }, 700);
+  }
+  function hintOff(){
+    clearTimeout(hintTimer);
+    hint.classList.remove('on');
+  }
+
   let beat = 0, timer = null, finished = false;
   const beats = [
-    () => { q('.ei-p1').classList.add('in'); q('.ei-c1').classList.add('in'); return 1600; },
-    () => { q('.ei-p2').classList.add('in'); q('.ei-c2').classList.add('in'); return 1600; },
-    () => { q('.ei-p3').classList.add('in'); q('.ei-c3').classList.add('in'); return 1900; },
+    () => { q('.ei-p1').classList.add('in'); q('.ei-c1').classList.add('in'); hintOn('.ei-p1'); return null; },
+    () => { q('.ei-p2').classList.add('in'); q('.ei-c2').classList.add('in'); hintOn('.ei-p2'); return null; },
+    () => { q('.ei-p3').classList.add('in'); q('.ei-c3').classList.add('in'); hintOn('.ei-p3'); return null; },
     () => {
       q('.ei-p3').classList.add('woke', 'focus');
       q('.ei-c3').textContent = 'It opened one eye. Then both.';
       layer.querySelectorAll('.ei-spark').forEach(s => s.classList.add('on'));
-      return 1500;
+      hintOn('.ei-p3');
+      return null;
     },
     () => {
       flash.classList.add('pop');
@@ -1116,6 +1212,7 @@ function playFirstOpenIntro(){
   function finish(skipped){
     if(finished) return;
     finished = true;
+    hintOff();
     clearTimeout(timer);
     window.removeEventListener('resize', reposition);
     track(skipped ? 'intro_skipped' : 'intro_complete', { beat: beat });
@@ -1129,16 +1226,14 @@ function playFirstOpenIntro(){
   // out on its own, so a stray tap can't skip past the card.
   layer.addEventListener('click', e => {
     if(e.target.closest('.ei-skip') || e.target.closest('.ei-continue')) return;
-    if(beat <= 4){ clearTimeout(timer); run(); }
+    if(beat <= 4){ hintOff(); clearTimeout(timer); run(); }
   });
   q('.ei-continue').addEventListener('click', e => { e.stopPropagation(); finish(false); });
   q('.ei-skip').addEventListener('click', e => { e.stopPropagation(); finish(true); });
 
-  // Watchdog: the sequence runs ~13s then waits on Continue indefinitely by
-  // design. If it hasn't even reached that final beat well past its runtime,
-  // something stalled — dismiss rather than leave a dead overlay up.
-  setTimeout(() => { if(!finished && beat < beats.length) finish(true); }, 25000);
-
+  // No watchdog here on purpose: the story advances on taps now, so "still
+  // running after N seconds" just means the player is reading. Skip is the
+  // escape hatch.
   track('intro_started');
   run();
 }
@@ -1564,13 +1659,16 @@ function buildWorld1Stage(stageNum){
   // node types World 1 already has. The 6-node template reproduces the
   // original single-stage layout exactly.
   const templates = {
-    6:  ['battle','battle','shop','battle','heal','boss'],
+    // Stage 1-1 has no merchant: with almost no gold earned yet and nothing
+    // worth buying, it was a dead stop in the opening stage. Every later
+    // stage still has one.
+    6:  ['battle','battle','battle','heal','boss'],
     7:  ['battle','battle','shop','battle','battle','heal','boss'],
     8:  ['battle','battle','shop','battle','battle','battle','heal','boss'],
     9:  ['battle','battle','shop','battle','battle','battle','battle','heal','boss'],
     10: ['battle','battle','shop','battle','battle','battle','battle','heal','battle','boss'],
   };
-  const nodeCount = 5 + stageNum; // 6,7,8,9,10 for stage 1..5
+  const nodeCount = 5 + stageNum; // template key for stage 1..5 (stage 1's is 5 nodes long since its shop was removed)
   const types = templates[nodeCount];
   // General is now the dominant World 1 element (roughly 5 of every 8
   // explicit battle slots) — General enemies are weakToAll, so this also
@@ -1672,8 +1770,12 @@ const WORLD2_NODE_TEMPLATE = {
   forkB1:   { type:'battle', element:null,      x:18, row:3, offset:3,    next:['item'] }, // random encounter — element hidden
   forkB2:   { type:'heal',   element:null,      x:50, row:3, offset:null, next:['item'] },
   forkB3:   { type:'battle', element:'general', x:82, row:3, offset:3,    next:['item'] },
-  item:     { type:'item',   element:null,      x:50, row:4, offset:null, next:['preboss'] },
-  preboss:  { type:'battle', element:'tide',    x:50, row:5, offset:5,    next:['boss'] },
+  item:     { type:'item',   element:null,      x:50, row:4, offset:null, next:['prebossHeal','prebossReward'] },
+  // The last decision before the boss: walk in at full HP, or take one more
+  // fight for an item and extra gold and walk in as you are. Both routes
+  // funnel into the same boss, so it's a genuine trade rather than a detour.
+  prebossHeal:   { type:'heal',   element:null,   x:26, row:5, offset:null, next:['boss'] },
+  prebossReward: { type:'reward', element:'tide', x:74, row:5, offset:5,    next:['boss'] },
   boss:     { type:'boss',   element:'tide',    x:50, row:6, offset:7,    next:[] },
 };
 const WORLD2_STAGE_COUNT = 5;
@@ -1706,8 +1808,9 @@ const WORLD3_NODE_TEMPLATE = {
   forkB1:   { type:'battle', element:null,      x:18, row:3, offset:3,    next:['item'] },
   forkB2:   { type:'heal',   element:null,      x:50, row:3, offset:null, next:['item'] },
   forkB3:   { type:'battle', element:'general', x:82, row:3, offset:3,    next:['item'] },
-  item:     { type:'item',   element:null,      x:50, row:4, offset:null, next:['preboss'] },
-  preboss:  { type:'battle', element:'volt',    x:50, row:5, offset:5,    next:['boss'] },
+  item:     { type:'item',   element:null,      x:50, row:4, offset:null, next:['prebossHeal','prebossReward'] },
+  prebossHeal:   { type:'heal',   element:null,   x:26, row:5, offset:null, next:['boss'] },
+  prebossReward: { type:'reward', element:'volt', x:74, row:5, offset:5,    next:['boss'] },
   boss:     { type:'boss',   element:'volt',    x:50, row:6, offset:7,    next:[] },
 };
 const WORLD3_STAGE_COUNT = 5;
@@ -2096,6 +2199,7 @@ function defaultProfile(){
     // finding one carries into every future run, and using one is gone for
     // good until restocked. Same starting kit a fresh run used to get.
     inventory: { potion:2, hyperpotion:0, revive:1 },
+    base: defaultBaseState(),
     hasSeenIntro: false, // one-time cold-open comic + first-Evopal reveal, shown before the hub on a brand-new save
     settings: { sound:true, music:true, notifications:true },
   };
@@ -2130,7 +2234,8 @@ async function loadProfile(){
       if(p.hasSeenFirstLossPrompt === undefined) p.hasSeenFirstLossPrompt = false;
       if(!p.inventory) p.inventory = { potion:2, hyperpotion:0, revive:1 }; // backward compat for saves before items became persistent instead of per-run
       if(p.lastCaughtSpeciesId === undefined) p.lastCaughtSpeciesId = null;
-      if(p.hasSeenIntro === undefined) p.hasSeenIntro = true; // any pre-existing save is mid-playthrough by definition
+      if(p.hasSeenIntro === undefined) p.hasSeenIntro = true;
+      if(!p.base) p.base = defaultBaseState(); // any pre-existing save is mid-playthrough by definition
       if(p.hasSeenLevelUpPrompt === undefined){
         // Same reasoning as hasCompletedFirstCatch — an existing save that's
         // already leveled something up clearly already knows how leveling
@@ -2223,7 +2328,7 @@ function statAtLevel(speciesId, stat, level){
   if(cardMult > 1 && boosted === Math.round(raw)) return boosted + 1;
   return boosted;
 }
-function maxHp(inst){ return statAtLevel(inst.speciesId,'hp',inst.level); }
+function maxHp(inst){ return statAtLevel(inst.speciesId,'hp',inst.level) + baseHpBonus(); }
 
 function learnedSkills(inst){
   const s = SPECIES[inst.speciesId];
@@ -2696,7 +2801,7 @@ function beginRun(squadSpeciesIds, worldId, explicitStage){
   // battles no longer grant XP or trigger leveling/evolution.
   const squad = squadSpeciesIds.map(sid => {
     const rec = profile.owned.find(o => o.speciesId === sid);
-    const inst = { speciesId: sid, level: rec.level, currentHp: statAtLevel(sid, 'hp', rec.level) };
+    const inst = { speciesId: sid, level: rec.level, currentHp: statAtLevel(sid, 'hp', rec.level) + baseHpBonus() };
     inst.skillEnergy = skillEnergyFull(inst);
     return inst;
   });
@@ -2785,6 +2890,194 @@ function pickRandomElement(worldId){
   // not just thematically "normal."
   const elems = worldId === 3 ? ['volt','general'] : worldId === 2 ? ['tide','general'] : ['ember','verdant','tide','general','general','general'];
   return elems[Math.floor(Math.random()*elems.length)];
+}
+
+// ---- Where can I catch this? ----------------------------------------
+// Mirrors spawnEnemyForNode's CANDIDATE rules (not its weighting) to answer
+// "which stages can this species appear in". Weighting only changes how
+// often something shows up, never whether it can, so eligibility is enough.
+// Deterministic and independent of profile state, so it's built once.
+function worldElementPool(worldNum){
+  // Same pools pickRandomElement draws from, deduped — a node with
+  // element:null can roll any of these.
+  return worldNum === 3 ? ['volt','general']
+       : worldNum === 2 ? ['tide','general']
+       : ['ember','verdant','tide','general'];
+}
+function spawnCandidatesFor(worldNum, element, allowEvolved){
+  const pool = tier => worldNum === 3
+    ? Object.values(SPECIES).filter(s => s.element === element && (element === 'general' || s.world === 3) && (tier || isBaseForm(s.id)))
+    : worldNum === 2
+    ? Object.values(SPECIES).filter(s => s.world === 2 && s.element === element && (tier || isBaseForm(s.id)))
+    : Object.values(SPECIES).filter(s => (!s.world || s.element === 'general') && s.element === element && (tier || isBaseForm(s.id)));
+  let c = pool(allowEvolved);
+  if(!c.length) c = pool(true); // same empty-pool fallback the spawner uses
+  return c;
+}
+// Where is this species MOST likely to turn up? Unlike the eligibility index
+// above, this one does model the spawner's weighting, because "best odds"
+// is exactly a question about weights. Scored as the best single-encounter
+// probability in each stage, then the best stage wins.
+//
+// Weights depend on what the player owns (unowned species are weighted 3x),
+// so this is cached against the owned list rather than built once.
+// World 1 map nodes have no `level` field — enterNode computes it with
+// world1NodeLevel(stage, index). Reading node.level there yields undefined,
+// which would make allowEvolved false on every non-boss World 1 node and
+// hide evolved-tier species from the whole world. Mirrors the call site.
+function nodeSpawnLevel(worldNum, stage, key, n){
+  return worldNum === 1 ? world1NodeLevel(stage, Number(key)) : n.level;
+}
+let _bestCatchCache = { key: null, map: null };
+function spawnElementDistribution(worldNum){
+  // pickRandomElement's raw pools, duplicates INTACT — World 1 lists
+  // 'general' three times out of six, so it is genuinely half the rolls.
+  const elems = worldNum === 3 ? ['volt','general']
+              : worldNum === 2 ? ['tide','general']
+              : ['ember','verdant','tide','general','general','general'];
+  const dist = {};
+  elems.forEach(e => { dist[e] = (dist[e] || 0) + 1 / elems.length; });
+  return dist;
+}
+function spawnWeightOf(sp, isBoss){
+  const isOwned = profile.owned.some(o => o.speciesId === sp.id);
+  let w = isOwned ? 1 : 3;
+  if(!isBoss && !isBaseForm(sp.id)) w = Math.max(1, Math.round(w * CONFIG.evolvedTierSpawnWeight));
+  return w;
+}
+function buildBestCatchMap(){
+  const best = {};
+  // Many species have identical odds in several stages (World 2 and 3 reuse
+  // one topology across all five). Ties break toward the EARLIEST stage —
+  // telling someone to farm 3-5 when 2-1 is just as likely isn't helpful.
+  const EPS = 1e-6;
+  const record = (id, world, stage, p) => {
+    if(p <= 0) return;
+    const cur = best[id];
+    if(!cur || p > cur.p + EPS) { best[id] = { world, stage, p }; return; }
+    if(Math.abs(p - cur.p) <= EPS && (world < cur.world || (world === cur.world && stage < cur.stage))){
+      best[id] = { world, stage, p };
+    }
+  };
+  const worlds = [
+    { num:1, stages:WORLD1_STAGES, start:(k)=>Number(k)===0 },
+    { num:2, stages:WORLD2_STAGES, start:(k)=>k===WORLD2_START },
+    { num:3, stages:WORLD3_STAGES, start:(k)=>k===WORLD3_START },
+  ];
+  worlds.forEach(({num, stages, start}) => {
+    stages.forEach((stageMap, si) => {
+      const stage = si + 1;
+      const dist = spawnElementDistribution(num);
+      const perSpecies = {}; // best single-encounter chance in this stage
+      Object.entries(stageMap).forEach(([key, n]) => {
+        if(!n || (n.type !== 'battle' && n.type !== 'boss' && n.type !== 'reward')) return;
+        const isStartNode = start(key);
+        const isBoss = n.type === 'boss';
+        if(n.forceSpecies){
+          perSpecies[n.forceSpecies] = 1; // pinned: it is always this one
+          return;
+        }
+        const lvl = nodeSpawnLevel(num, stage, key, n);
+        const allowEvolved = isBoss || (!isStartNode && (lvl ?? 0) >= CONFIG.evolvedTierMinLevel);
+        const elements = (isStartNode || !n.element) ? Object.keys(dist) : [n.element];
+        const nodeChance = {};
+        elements.forEach(element => {
+          const pElement = (isStartNode || !n.element) ? dist[element] : 1;
+          let c = spawnCandidatesFor(num, element, allowEvolved);
+          if(isBoss && lvl !== undefined && lvl !== null){
+            const compatible = c.filter(sp => speciesMinLevel(sp.id) <= lvl);
+            if(compatible.length) c = compatible;
+          }
+          if(isStartNode){
+            const commonOnly = c.filter(sp => sp.rarity === 'common');
+            if(commonOnly.length) c = commonOnly;
+          }
+          const total = c.reduce((t, sp) => t + spawnWeightOf(sp, isBoss), 0);
+          if(!total) return;
+          c.forEach(sp => {
+            nodeChance[sp.id] = (nodeChance[sp.id] || 0) + pElement * (spawnWeightOf(sp, isBoss) / total);
+          });
+        });
+        Object.entries(nodeChance).forEach(([id, p]) => {
+          if(!perSpecies[id] || p > perSpecies[id]) perSpecies[id] = p;
+        });
+      });
+      Object.entries(perSpecies).forEach(([id, p]) => record(id, num, stage, p));
+    });
+  });
+  return best;
+}
+function bestCatchStage(speciesId){
+  const key = profile.owned.map(o => o.speciesId).sort().join(',');
+  if(_bestCatchCache.key !== key){
+    _bestCatchCache = { key, map: buildBestCatchMap() };
+  }
+  return _bestCatchCache.map[speciesId] || null;
+}
+
+let _catchStageIndex = null;
+function buildCatchStageIndex(){
+  const index = {};
+  const add = (speciesId, world, stage) => {
+    (index[speciesId] = index[speciesId] || []).push(world + '-' + stage);
+  };
+  const worlds = [
+    { num:1, stages:WORLD1_STAGES,  start:(id,i)=>i===0 },
+    { num:2, stages:WORLD2_STAGES,  start:id=>id===WORLD2_START },
+    { num:3, stages:WORLD3_STAGES,  start:id=>id===WORLD3_START },
+  ];
+  worlds.forEach(({num, stages, start}) => {
+    stages.forEach((stageMap, si) => {
+      const stage = si + 1;
+      Object.entries(stageMap).forEach(([key, n]) => {
+        if(!n || (n.type !== 'battle' && n.type !== 'boss' && n.type !== 'reward')) return;
+        const isStartNode = start(key, Number(key));
+        const isBoss = n.type === 'boss';
+        if(n.forceSpecies){ add(n.forceSpecies, num, stage); return; }
+        const lvl = nodeSpawnLevel(num, stage, key, n);
+        const allowEvolved = isBoss || (!isStartNode && (lvl ?? 0) >= CONFIG.evolvedTierMinLevel);
+        // element:null means the node rolls one at random, so every element
+        // in that world's pool is possible here. Same for the start node,
+        // whose element is picked per-run.
+        const elements = (isStartNode || !n.element) ? worldElementPool(num) : [n.element];
+        elements.forEach(element => {
+          let c = spawnCandidatesFor(num, element, allowEvolved);
+          if(isBoss && lvl !== undefined && lvl !== null){
+            const compatible = c.filter(sp => speciesMinLevel(sp.id) <= lvl);
+            if(compatible.length) c = compatible;
+          }
+          if(isStartNode){
+            const commonOnly = c.filter(sp => sp.rarity === 'common');
+            if(commonOnly.length) c = commonOnly;
+          }
+          c.forEach(sp => add(sp.id, num, stage));
+        });
+      });
+    });
+  });
+  Object.keys(index).forEach(k => { index[k] = [...new Set(index[k])]; });
+  return index;
+}
+function speciesCatchStages(speciesId){
+  if(!_catchStageIndex) _catchStageIndex = buildCatchStageIndex();
+  return _catchStageIndex[speciesId] || [];
+}
+// "1-3","1-4","1-5","2-1" -> [{world:1, label:'3-5'}, {world:2, label:'1'}]
+function summariseCatchStages(speciesId){
+  const byWorld = {};
+  speciesCatchStages(speciesId).forEach(k => {
+    const [w, st] = k.split('-').map(Number);
+    (byWorld[w] = byWorld[w] || []).push(st);
+  });
+  return Object.keys(byWorld).map(Number).sort((a,b)=>a-b).map(w => {
+    const nums = [...new Set(byWorld[w])].sort((a,b)=>a-b);
+    const runs = [];
+    nums.forEach(n => {
+      const last = runs[runs.length-1];
+      if(last && n === last[1] + 1) last[1] = n; else runs.push([n, n]);
+    });
+    return { world: w, label: runs.map(([a,b]) => a===b ? String(a) : a+'-'+b).join(', ') };
+  });
 }
 
 // The level at which a species can first possibly exist — 1 for a base/
@@ -2935,7 +3228,7 @@ function enterNode(nodeIdOrIndex){
   const isStartNode = isBranchWorld ? nodeIdOrIndex === branchStart : nodeIdOrIndex === 0;
   if(isBranchWorld) run.activeNodeId = nodeIdOrIndex;
 
-  if(node.type === 'battle' || node.type === 'boss'){
+  if(node.type === 'battle' || node.type === 'boss' || node.type === 'reward'){
     const level = isBranchWorld ? node.level : world1NodeLevel(run.stage, nodeIdOrIndex);
     const enemy = spawnEnemyForNode(node, level, isStartNode, node.type === 'boss');
     // Stage 1-5's boss is a two-phase gauntlet — defeating the first Evopal
@@ -2950,7 +3243,7 @@ function enterNode(nodeIdOrIndex){
       bossPhase: isGauntletBoss ? 1 : undefined,
       bossPhaseTotal: isGauntletBoss ? 2 : undefined,
       activeIdx: run.squad.findIndex(c => c.currentHp > 0),
-      log: [ (node.type==='boss' ? 'A powerful foe blocks the path!' : 'A wild Evopal appears!') ],
+      log: [ (node.type==='boss' ? 'A powerful foe blocks the path!' : node.type==='reward' ? 'A guardian stands over a stash of supplies!' : 'A wild Evopal appears!') ],
       menu: 'main',
       captureUsed: false,
       catchAttempts: 0,
@@ -3346,16 +3639,12 @@ function computeDamage(attackerSpeciesId, attackerLevel, atkStatOverride, defend
   const def = (defStatOverride ?? statAtLevel(defenderSpeciesId,'def',defenderLevel)) * defBuffMult;
   // Named elemental skills (elemental=true, the default) get the full
   // super-effective/resisted swing from typeMultiplier(). The basic Attack
-  // move (elemental='basic') gets a milder version instead: a flat
-  // +50% when the attacker's element is strong against the defender's, but
-  // no penalty on a resisted matchup — it's meant to stay a safe, reliable
-  // fallback rather than swing as hard as a signature move either way.
+  // is deliberately NOT elemental at all — flat damage, no bonus and no
+  // penalty — so type advantage is something you get from choosing skills
+  // rather than something that leaks into the default button.
   let mult = 1;
   if(elemental === true){
     mult = typeMultiplier(SPECIES[attackerSpeciesId].element, SPECIES[defenderSpeciesId].element);
-  } else if(elemental === 'basic'){
-    const fullMult = typeMultiplier(SPECIES[attackerSpeciesId].element, SPECIES[defenderSpeciesId].element);
-    mult = fullMult > 1 ? 1.5 : 1;
   }
   const variance = 0.9 + Math.random()*0.2;
   const raw = (atk * power - def*0.5) * mult * variance;
@@ -3376,12 +3665,15 @@ function applyPlayerAction(action, log, actingCreature){
   const p = activePlayer();
   if(action.kind === 'attack' || action.kind === 'skill'){
     const skill = action.kind === 'attack'
-      ? { name:'Attack', type:'damage', power:1.0, elemental:'basic' }
+      ? { name:'Attack', type:'damage', power:1.0, elemental:false }
       : action.skill;
     if(skill.type === 'damage'){
       const defBuff = battle.enemyBuffs.def > 0 ? 1.3 : 1;
-      const raw = computeDamage(p.speciesId, p.level, null, battle.enemy.speciesId, battle.enemy.level, null, skill.power, defBuff, skill.elemental === undefined ? true : skill.elemental);
-      const dmg = Math.max(1, Math.round(raw.dmg * DIFFICULTY.playerDamageMult));
+      const isElemental = skill.elemental === undefined ? true : skill.elemental;
+      const raw = computeDamage(p.speciesId, p.level, statAtLevel(p.speciesId,'atk',p.level) + baseAtkBonus(), battle.enemy.speciesId, battle.enemy.level, null, skill.power, defBuff, isElemental);
+      // The Library's bonus is elemental damage specifically, so it lands on
+      // named skills and never on the plain Attack.
+      const dmg = Math.max(1, Math.round(raw.dmg * DIFFICULTY.playerDamageMult) + (isElemental ? baseElementalBonus() : 0));
       const mult = raw.mult;
       battle.enemy.currentHp = Math.max(0, battle.enemy.currentHp - dmg);
       run.damageDealt[p.speciesId] = (run.damageDealt[p.speciesId] || 0) + dmg;
@@ -3453,12 +3745,12 @@ function applyPlayerAction(action, log, actingCreature){
 function applyEnemyAction(log){
   const e = battle.enemy;
   const skills = SPECIES[e.speciesId].skills.filter(s => s.level <= e.level);
-  const skill = skills.length ? skills[Math.floor(Math.random()*skills.length)] : {name:'Strike',type:'damage',power:1.0,elemental:'basic'};
+  const skill = skills.length ? skills[Math.floor(Math.random()*skills.length)] : {name:'Strike',type:'damage',power:1.0,elemental:false};
   const p = activePlayer();
   if(skill.type === 'damage'){
     const defBuff = battle.buffs.def > 0 ? 1.3 : 1;
     const atkDown = battle.enemyBuffs.atkDown > 0 ? 0.75 : 1;
-    const raw = computeDamage(e.speciesId, e.level, statAtLevel(e.speciesId,'atk',e.level)*atkDown, p.speciesId, p.level, null, skill.power, defBuff, skill.elemental === undefined ? true : skill.elemental);
+    const raw = computeDamage(e.speciesId, e.level, statAtLevel(e.speciesId,'atk',e.level)*atkDown, p.speciesId, p.level, statAtLevel(p.speciesId,'def',p.level) + baseDefBonus(), skill.power, defBuff, skill.elemental === undefined ? true : skill.elemental);
     const dmg = Math.max(1, Math.round(raw.dmg * DIFFICULTY.enemyDamageMult));
     const mult = raw.mult;
     p.currentHp = Math.max(0, p.currentHp - dmg);
@@ -3506,7 +3798,17 @@ function handleEnemyDefeated(){
     return;
   }
 
-  const goldWon = 10 + battle.enemy.level*3;
+  let goldWon = 10 + battle.enemy.level*3;
+  // Reward nodes are an ordinary fight at ordinary difficulty — the payout is
+  // the whole point of taking one over the guaranteed heal alongside it.
+  if(battle.node.type === 'reward'){
+    goldWon += REWARD_BATTLE_GOLD_BONUS;
+    const keys = Object.keys(ITEMS);
+    const got = keys[Math.floor(Math.random()*keys.length)];
+    profile.inventory[got] = (profile.inventory[got]||0) + 1;
+    saveProfile();
+    battle.rewardItemId = got;   // surfaced on the victory screen
+  }
   run.gold += goldWon;
   run.goldEarned += goldWon;
   battle.victory = true;
@@ -3520,8 +3822,27 @@ function handleEnemyDefeated(){
   render();
 }
 
+const REWARD_BATTLE_GOLD_BONUS = 25; // TUNABLE: extra gold on top of the normal victory payout for clearing a reward node
+
+// The first two Squires are guaranteed catches. Two of the same species is
+// exactly one dupe, which is what a level-1 Evopal needs to level up
+// (dupesNeededForLevel(1) === 1) — so this is the shortest path to teaching
+// the catch -> dupe -> level-up loop without leaving it to chance.
+//
+// Counted off profile.dex rather than a new flag: the dex already persists
+// catches per species, so there's nothing to migrate and an existing save
+// that's past two Squires simply never sees this.
+const TUTORIAL_CATCH_SPECIES = 'sproutling';   // Squire
+const TUTORIAL_GUARANTEED_CATCHES = 2;         // TUNABLE
+function isTutorialGuaranteedCatch(){
+  if(!battle || !battle.enemy || battle.enemy.speciesId !== TUTORIAL_CATCH_SPECIES) return false;
+  const caught = (profile.dex[TUTORIAL_CATCH_SPECIES] || {}).caught || 0;
+  return caught < TUTORIAL_GUARANTEED_CATCHES;
+}
+
 function catchChance(){
   if(!profile.hasCompletedFirstCatch) return 1; // guaranteed first-ever catch
+  if(isTutorialGuaranteedCatch()) return 1;
   const sp = SPECIES[battle.enemy.speciesId];
   const base = RARITY_CATCH[sp.rarity] ?? 0.3;
   const hpBonus = (battle.lastPlayerHpFraction ?? 0.5) * CONFIG.catchHpWeight;
@@ -4198,6 +4519,10 @@ function continueAfterBattle(){
 /* ---------- RENDER ---------- */
 let _lastRenderKey = null;
 function render(){
+  // The tooltip is anchored to an element that render() is about to destroy,
+  // so retire it here instead of leaving a bubble pointing at empty space.
+  if(typeof hideEnemyTypeTooltip === 'function') hideEnemyTypeTooltip();
+
   const app = document.getElementById('app');
   // Replacing innerHTML destroys and recreates the DOM, which resets any
   // scrolled container back to the top. That's correct when navigating to
@@ -4570,12 +4895,15 @@ function renderHub(){
     </div>` : ''}
     ${ui.hubTab === 'upgrades' ? renderUpgradesTab()
       : ui.hubTab === 'team' ? renderTeamTab()
+      : ui.hubTab === 'base' ? renderBaseTab()
       : ui.hubTab === 'clan' ? renderClanTab()
       : ui.hubTab === 'shop' ? renderShopTab()
       : renderWorldsTab()}
   </div>
   ${ui.hubTab === 'worlds' && !profile.totalRuns ? '' : `<div class="bottom-nav">
-    <button class="bottom-nav-btn locked ${ui.hubTab==='clan'?'active':''}" onclick="showLockTooltip(event, 'Coming Soon');"><span class="bn-icon"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGAAAABgCAMAAADVRocKAAAAkFBMVEUAAAB/f39/P38/Pz8NEw0CAwMCAgIDAwMBAgJcU1kCAgMBAQEaJCsUHCMrOkYWFhg1RlQpJysgHB4BAQFgfJNXdY1sYmlLaoNoXmVPZXhEWGk+WG46V25LRElAOT44NToiHiGJsdKBp8Z+pMN8oL5nmsJxl7ZflsFckLlri6VZjbVlg5tQfqFhV15bUllEPULLvPOaAAAAIXRSTlMAAgQEDS5PcImsr9D7+/z8/f39/f7+/v7+/v7+/v7+/v6UbnU6AAAEj0lEQVR42u2abXOiSBCAk9vwcoIOkxYVNxNkiCziBf7/v7vqARGkCcPoVm3dpT8kVTr2Y/f0y/Tg09O3fIsSy3Ycx1204jqOY1uP0u4sYEQWziPUX7QxxngjjLHLq/cibA9V81jsdpue7HaliBHj2Xeof3ZRfVyVSmNfFKbkAOA+GwPQ+bEQ5UD7lSIYwOIO/awS1bh+heDGBAeAiepr/Q3BaKutWr/4Wj8iOIBJTngAVVWJ3qb2wqh9ZwfgGQQoAG8dpBR+lmUphBBlWX42LzUEAWCbGCAaAzYbwdltFjMuWks2bL4J1tWAzY7TleIgRLlDwqaavwsOwHtVVerzDMBT5c22LcuybFuVPszxqvkKn/MDaVGHUBMkLrXERRsaApubC88evNYxit/OpRe5AO9CWbl5n21BvQUIEKP+7e7T309/mQJi8H7Qa354l0XzAVYPMB7KHYBplG74V4BD60fv5bcA2ORGjQPi/xBgMZGNfzrgMAnYmQM+dQHlXIB9BbxqAmxTAPsGjAKq3wyohBDYMa8Aq5Xr0Q9PNtj6DQCvTAl2d8/zhi2/fZGxA+dzAS7MFnfuVADM93m8CoJgv4+iaBv2ZBtF0X4fBMEq5txfwqxJAYea1bbIpJQymRRcJbNwpT/u4Kk6PP46qk+mk6KWySQ5LzUJFsCyOBZF80lNSdPkw9crSAsA1J/JmZLKTOv4ZQG8HYs8T+VsQhLpmOACy/N8xIC0/UML0whWD4JjQQJSKVXIJOMmBBrHeICfNCCV8hxw349/nkesSJMQQGMLtjQgWfuXpOXnESvW05tgAYQ0YN8UHvVvTxPOeoBfQwC6F+AQV0JU8UERKC+dpgE2wD95kRfHG/3beuivsDyLGABCipBNF1UboBgCMIdUi6sFCexDPg6QJvv6MNwSOEBEmKABcIBRFviqd3UEgFMWsMl6pwB5flPqsvpaoWMCA6ByUQewzIeAU99DtY9OhAnLSYBLAs4U4EwA/MlihAD00cBFQ0BmCPAJQMqGe0DGqSEgTVb1QayVGGBFZZoxIOyHEQZR+ECAlJJ3dwF3gJPVzhyQYa27APB6J3ssIE3WcPES+od20D0WqHp6BWxp/XcApIwv9RRraTzSlk0TrR9HozGkCxiWCpVq6o5NyTsAM3URXexuGgKGKd0zl4blWuVBvx3QcWoKSOX6Nb7paFSp0OoHZE9OomrQcE5GHW2k6Ydxv2NiqBK7YNj0VZL1ARhIb6aAcAjYUw2HOFacpgH00RFLHY87MlLuTlpHx+HhV5lwK1QinA0B7dG3q3/k+G5NzwdvFCDJon1HoiwZmaE0ZsAVBUhvJmZqBMHWPT0FNpk2rNfUdDyM0ulJ2YLaBJMpM9AalF21zQZzMm6x1o2IhwRMNX0j0GeoX+9RkQUAQXE8frUJtzGWJBnOWJpXmxbe5qzewvMpy7LsI71q6V+xSJl+4IrTeR3hZYunfXX60r2PYmzp+5zHK5QAb4hQ8JbIX3aeXM+7kXqyHG/efZfnzH6c+XJ5YuY4rtv5wUD7wwHXVW+qp2svT9/yP5Z/AUFs92Hpot6bAAAAAElFTkSuQmCC" style="width:34px;height:34px;object-fit:contain;"></span></button>
+    <button class="bottom-nav-btn ${!baseTabUnlocked() ? 'locked' : ''} ${ui.hubTab==='base'?'active':''}" onclick="${!baseTabUnlocked() ? `showLockTooltip(event, 'Unlocks after your first run');` : `switchHubTab('base')`}">${baseTabUnlocked() && basePending('farm').units + basePending('pen').units > 0 ? '<span class="bn-badge"></span>' : ''}<span class="bn-icon">${!baseTabUnlocked()
+      ? `<span style="display:flex; align-items:center; justify-content:center; width:34px; height:34px;">${lockIcon(24)}</span>`
+      : `<svg viewBox="0 0 120 100" style="width:36px;height:36px;display:block;"><g stroke="#23262F" stroke-width="6" stroke-linejoin="round" stroke-linecap="round"><rect x="20" y="44" width="80" height="42" rx="6" fill="#E9714A"/><path d="M16 46 60 14l44 32z" fill="#F2B705"/><rect x="46" y="60" width="28" height="26" rx="4" fill="#FFF3D8"/></g></svg>`}</span></button>
     <button class="bottom-nav-btn team-nav-target ${ui.hubTab==='team'?'active':''}" onclick="switchHubTab('team')">${hasUnequippedSquadSlot() ? '<span class="bn-badge-alert">!</span>' : (hasReadyLevelUp() || hasPendingPlayerLevelUp()) ? '<span class="bn-badge"></span>' : ''}<span class="bn-icon">${(() => { const firstId = (profile.activeSquad||[])[0]; const art = firstId && CREATURE_ART[firstId]; if(art && art.card) return `<img src="${art.card}" style="width:48px;height:48px;object-fit:contain;">`; return `<img src="data:image/png;base64,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" style="width:40px;height:40px;object-fit:contain;">`; })()}</span></button>
     <button class="bottom-nav-btn ${ui.hubTab==='worlds'?'active':''}" onclick="switchHubTab('worlds')"><span class="bn-icon"><img src="data:image/png;base64,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" style="width:40px;height:40px;object-fit:contain;"></span></button>
     <button class="bottom-nav-btn ${!cardsUnlocked() ? 'locked' : ''} ${ui.hubTab==='upgrades'?'active':''}" onclick="${!cardsUnlocked() ? `showLockTooltip(event, 'Unlocks at World 1-3');` : `switchHubTab('upgrades')`}">${!cardsUnlocked() ? `<span class="bn-icon" style="display:flex; align-items:center; justify-content:center; width:34px; height:34px;">${lockIcon(24)}</span>` : `${((profile.premiumCurrency||0) >= pullCardCost(1) || hasCardReadyToUpgrade()) ? '<span class="bn-badge"></span>' : ''}<span class="bn-icon"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGAAAABgCAMAAADVRocKAAAAkFBMVEUAAAD///9cXFw1NTUVFRQICAgGBgYFBQUFBQUEBQQDBAUjM1IjMCISJg8TFxJXV1dOXU4kWCABAQGfn59WoFh9fX3+/v7p6enW1taD/pN8/ovKysp57INl6G46/UMD/QUX6RpBlf8/kP86iPQ1efE6d9E6bbwtaO8KngUkV+0gSd8ZR/UbPcsZMaAZKmISFiv9rusBAAAAFnRSTlMAAQIEEDBTbZGuy/z8/Pz9/f39/v7+M4yK+QAAA7hJREFUeNrtmNt6ojAURq0VEQci7FDlIKNOnWLLTH3/t5svgSI57CTK16vhv7ZZNQuTnz2bTZkyZcqU2WwZrA0JlmPX98ESfyQAgPwwBABGbhDA2+n1lzan0+n0BrAcC/j9iuRc1/XHNwLqpmmaP98HeGfLN6O/gY8B6qb5CwDXMY/RwvMDwADt+jyB7y3uXnzu+cG6/Xst4Nw0ANHlkhD+mXXge8/uq3vLVbd4GCKAmum9HA7FPo3D9rPr1dJz2Zfb4jGlGUUA72yHjodjXuR5XqWJI+S2+IZm2+02K1/0gHPTfEJ0OFR5wdJCoh5i+c/bxVlKDFAzBUkPaBkiZKE87ywkpuX2FhTAd4gpEJLneVGlnXfx9+GpixsBbIdaBXIGkKGNAAjdbZVgAK4gHO6QDNmnBIIBYA2b7dYdoCoQUhV5kSewFr5BeA9Ar+ArexKleREK38AHyO4A4ArYBqUAaV6Jh5QHQN0B56a5GhRUaVIxylDys14CAqjZKZ2YHHMFwuG00kpAAJ2Co15BUe2LIo9gJZ/7mTOAKSDHw09MAamYAvHA0EvQA7gCdIfyGEBRgP0S9ACu4GJwnHIFcxGwAuIKuB3VBSK5KGQF/LQrHQFcwQFR0CIqtQssdBK0ALOC/remXNNriN0A/W2JRzqIcAlagE0BC1EU6CVoAZ2C6j4FvEdTF4CjAs2trJGgAzyqgEvYOQAeVcAlUAeAWFiwHVrqX2Ze7ICz+bY0KNDdmxqAm4IAq+o7K8BBwR6r9OqRrQLObgr0BXWhSNACrApizUGESFAB5sLSAkJEgUYCAjArqPC3KkWCArB0RrMCLiE2A2oHBQmqQJWgAMYpUMuLAjB2RqsCVYIMsHRGmwLeIGMTwNIZv45qwwutJEEGuCiIDAoUCTLA2Bn729I0W5AkSADH29L0pjwXG6QEsHTGLwVz06u4WOMlgMttGWlvS6y8lCVlI7VuhPbafDzSGU3lJWOA6+ctD9+WfZ5ECbSMpSkme0jNCp7MBLFBZrSkYXi9Ep4rebCwGBpkRss+tNyw23KcAqVB7oaA2OEgsk7XdDW+e6bYeCq5VOw19a7O6PAu1QLophuFpXsEYlegbZBsp+jLD3J7lkiigzgp0NX4ksakn2C2s04OSatCgNh/Bd2RHYv7QuTx6AKBoJ0RKy8Z3YTooK+f8TFI3kKI0xi4PbIzOpiHLmzz1YhDLEf1oLyQjXVxzSiUDeqcZszLuya5wjdxnMR7AZtFz++edQfebMqUKVP+0/wDLqLJjH6rbnIAAAAASUVORK5CYII=" style="width:40px;height:40px;object-fit:contain;"></span>`}</button>
@@ -4980,12 +5308,15 @@ function renderMap2(){
         const state = run.visited.includes(id) ? 'done' : run.reachable.includes(id) ? 'current' : 'locked';
         const isStartNode = id === (run.world === 3 ? WORLD3_START : WORLD2_START);
         const displayElement = isStartNode ? run.node0Element : n.element;
-        const isBattle = n.type === 'battle';
+        // A reward node IS a fight, so it shows its element like any battle —
+        // but unlike a plain battle it keeps its label below, which is the
+        // only cue that clearing it pays out.
+        const isBattle = n.type === 'battle' || n.type === 'reward';
         const circleContent = isBattle ? (displayElement ? ELEMENTS[displayElement].icon : '<img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAMAAACdt4HsAAAAwFBMVEUAAAABAQEYGBgWFhYmJiYoKCgmJiYqKiocHBwlJSUjIyMkJCQZGRk2NjYwMDAbGxsdHR0yMjIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAliI3mAAAAMHRSTlMA/Qn3MU1y9cwTq5OnSv8mkjgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADIVGWFAAABMklEQVR42u1Wy3LDMAiUEXorafv/P9s0sWV5gmMB7aQH74wvGnYNCBDGnNgFoK/hGsLtqx6BTfd26mE9T8Jt6XcJx+D7iYJX8scVcNoDjuXP7gpYYAZgH+AFsTpQMD2AmeNCy4CjvMLxCMrmtJKnJBZTIP2qxwKBjHbJTDgWuM6WYoFAC8whRKnAktrPY4FI/SpZ4m73OvnZErAV10gtlx/DvFqCi62U89g0KcWtfOx7C/ij0fXdWJT8yHcgWR3fxI6fBXwUDuWGNkgigoTfhpMX0VkdRONjvAFoXGaBy9sEnDYEkLfQpg6ymG8gC0u4k/hS0U/8l4VVxU4+huiTmD+/KRal3lvWdvdipArbCXRv4nbjFWUhdQJJlUNxFovmWf+VazQQxc96W49qqO4can+Ob8m0BrElCk/4AAAAAElFTkSuQmCC" style="width:24px;height:24px;object-fit:contain;">') : NODE_ICON[n.type];
         return `<div class="node-col" style="left:${n.x}%; top:${rowTop(n.row)}px;">
           ${state==='current' ? '<div class="node-here">▼</div>' : ''}
           <button class="node-btn ${state}" ${state==='current' ? `onclick="enterNode('${id}')"` : ''}>${circleContent}</button>
-          ${(isBattle || n.type==='shop') ? '' : `<div class="node-label">${n.type}</div>`}
+          ${(n.type==='battle' || n.type==='shop') ? '' : `<div class="node-label">${n.type}</div>`}
         </div>`;
       }).join('')}
     </div>
@@ -5060,6 +5391,7 @@ function renderBattle(){
           <div class="stat-pill"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAMAAACdt4HsAAAAe1BMVEUAAAAXFxYhIB8jIyElJSQtLCsxMC4wMC8xLy8yMjE0NDM3NzZdVD11Z0c4NTC4nmCZhFApKSrHq2eulFWMeEgeICTxzHTXuGy6oGJmWToXGiP/4Hz61Xf/0Vn2xlbgv2/nu1XetVTJpE+gildzYzxRSTVBPC8KEB4ABx5i6vqpAAAAG3RSTlMACRwdLE9ecIyPs8r6+/v8/Pz9/f39/v7+/v5PUEodAAADMUlEQVR42u1Xe5OiMAzXXViOV2ikBYmCyFnZ7/8Jb2ihVnko7v11cxnHUUh+TfPOZvPv0tb5+hVCR4Hvfm7XSrsBIpHAjgQRou+swHB8JIKIp7v8lJ3yXcojIIHeixBOgIRxkh1typIYCP0XILY+EjAlnQ0Y+kfGgMB9ejwQduLZCKB7yFEEy0p4SEWumQfZ4Yf65BGBsyDvo2BGPE9jCYAAMk5zA8EEOgvyuD/0rEwSEYKUEpCI5HCvwx7RnZfPteoZhxYL1tRVR3XDCmyR61fHHc7o4Bn5BFrg56qsBiqrM4cWkkUEB2mv5Tkhr2/SPUbNkbhG2AsY+2ILxA7KXUUrm0dxBdHINlIcB0bh2ABUaHfJtqjmqGil9mok3NEFMNev2ks1T5c2Ulw5Pl4iJKYMwBfO1zpwZQZO/oMCoPyckLy7tvXdk6RExQngnQqBViADbCzRhksAkLyxYJr+KEae7QJE9ZS3XPPxS2d0FYpdIHZuuTCNzFuuzkJbBVfE+iHo2Csv3wUnKtLub50WRPzyfdHYNWgVYjuaAkqUWoMCVVUQXRtjg+ZKNBi35K26bmKZcavudTxKrA0XybtQlmSwzyhVwFhmdFB5NzenVA1dH/x3pca4klTIRPhhTEC8qzopsdI46yGay8Y4uGSUduyc3FsYqyexOaShcTgV1ttYn2eMEIrdnQlKTukIIDVWqLURdhgMAKDzAMCEm7HmjWo0QQqg8yG8AZyUWS2OiTSw8JXTcoQbgEpz6wg5ASAtBTU/3F/hBxqEb9rAAAT4lhdE+Nfi4MeR+DGVC/dWqO1cEH0uOONsPFvZaLWGsl7Oxo2/rh781vUgsGuqrkgwX5GKUUWyW8OoJrKVNXHjvVGVg7vO+EZfcB5aI1/VmUbtddvXhGPxpDcWfW8cjQiuiNZ054fW2LfXFfPB5IQhXp5QaGbGwd1LM1KO6E1PqQZhakqDYUrLEf2ZOc99cU705ydlpKeTKi3Iq1k7ejIrz9zf+CIQ/Ug6Na0zXJ61tSFgYV94eeWY2liQMHBeXLk8FKOdidB31ux8fre14W1rC9zVm9+n6wVqbwz9L2e7+U/z9Af6swQgn24THQAAAABJRU5ErkJggg==" style="width:15px;height:15px;object-fit:contain;vertical-align:-3px;"> +${battle.goldWon} gold</div>
           <div class="stat-pill">✨ +${battle.xpWon || 0} XP</div>
         </div>
+        ${battle.rewardItemId ? `<div class="stat-pill">${ITEMS[battle.rewardItemId].icon} ${ITEMS[battle.rewardItemId].name} found!</div>` : ''}
         ${battle.captureResolved === 'failed' ? `<div class="muted">It broke free! ${remaining} attempt${remaining===1?'':'s'} left.</div>` : ''}
       </div>
       ${battle.captureAnimating ? '' : (battle.catchAttempts === 0 ? `<button class="btn btn-primary btn-full" onclick="attemptCapture(false)">Catch! (${chance}% chance)</button>` : '')}
@@ -5093,7 +5425,7 @@ function renderBattle(){
         const eSize = Math.round(150 * eScale);
         const eRight = -10 - battleSpriteEnemyShiftX(eSpec.id);
         const eBottom = -100 - battleSpriteEnemyShiftY(eSpec.id); // more negative = further down, clearing the topbar
-        return `<div id="enemy-sprite" style="position:absolute; right:${eRight}px; bottom:${eBottom}px; width:${eSize}px; height:${eSize}px; z-index:4; pointer-events:none;" class="${(playSpawnAnim || playEnemySwitchInAnim) ? 'creature-spawn-in' : ''}">${battleArt(eSpec.id, eSize, 'front')}</div>`;
+        return `<div id="enemy-sprite" onclick="showEnemyTypeTooltip(event, '${eSpec.id}')" style="position:absolute; right:${eRight}px; bottom:${eBottom}px; width:${eSize}px; height:${eSize}px; z-index:4; cursor:pointer;" class="${(playSpawnAnim || playEnemySwitchInAnim) ? 'creature-spawn-in' : ''}">${battleArt(eSpec.id, eSize, 'front')}</div>`;
       })()}
     </div>
 
@@ -5266,9 +5598,14 @@ function renderLevelUpRow(rec, sp){
   const atMaxLevel = rec.level >= CONFIG.maxCreatureLevel;
   if(atMaxLevel) return `<div class="muted center-text" style="font-size:9.5px; padding-top:5px;">MAX LEVEL</div>`;
   const lvlNeeded = dupesNeededForLevel(rec.level);
-  const canLevelUp = rec.dupes >= lvlNeeded;
+  // A held evolution blocks further levels outright — the only move left is
+  // to go through with it, so the button says so and is always pressable.
+  const held = !!rec.evolutionHeld;
+  const canLevelUp = held || rec.dupes >= lvlNeeded;
   const willEvolveNext = sp.evolveInto && sp.evolveLevel && (rec.level + 1) >= sp.evolveLevel;
-  const btnLabel = canLevelUp ? (willEvolveNext ? 'Evolve' : 'Level Up') : `${Math.min(rec.dupes,lvlNeeded)}/${lvlNeeded}`;
+  const btnLabel = held ? 'Evolve now'
+    : canLevelUp ? (willEvolveNext ? 'Evolve' : 'Level Up')
+    : `${Math.min(rec.dupes,lvlNeeded)}/${lvlNeeded}`;
   const lvlPct = Math.max(0, Math.min(100, Math.round((Math.min(rec.dupes,lvlNeeded)/lvlNeeded)*100)));
   return `<div style="padding:5px 6px 7px;">
     <button class="btn ${canLevelUp?'btn-primary':'btn-disabled'}" data-levelup-species="${rec.speciesId}" style="position:relative; width:100%; padding:0; font-size:10.5px; overflow:hidden; box-shadow:${canLevelUp?'0 2px 0 var(--action-blue-dark)':'none'};" onclick="event.stopPropagation(); levelUpCreature('${rec.speciesId}', event)">
@@ -5402,11 +5739,14 @@ function renderTeamTab(){
           const rec = owned.find(o => o.speciesId === id);
           const sp = SPECIES[id];
           if(!rec){
+            // Still anonymous, but it points you at where to go hunting
+            // rather than being a dead slot.
+            const hunt = bestCatchStage(id);
             return `<div class="creature-tile lock-overlay">
               <div class="icon" style="padding:16px 0 12px;">❔</div>
               <div class="ct-band" style="background:var(--surface-line); color:#fff; font-size:13px; padding:6px 0;">???</div>
               <div style="padding:5px 6px 7px;">
-                <button class="btn btn-disabled" style="width:100%; padding:5px; font-size:10.5px;" disabled>???</button>
+                <button class="btn btn-disabled" style="width:100%; padding:5px; font-size:10.5px;" disabled>${hunt ? `Stage ${hunt.world}-${hunt.stage}` : '???'}</button>
               </div>
             </div>`;
           }
@@ -5518,8 +5858,8 @@ function renderEvopalStatsModal(){
   const sp = SPECIES[speciesId];
   const rec = profile.owned.find(o => o.speciesId === speciesId);
   const level = rec ? rec.level : 1;
-  const hp = statAtLevel(speciesId, 'hp', level);
-  const atk = statAtLevel(speciesId, 'atk', level);
+  const hp = statAtLevel(speciesId, 'hp', level) + baseHpBonus();
+  const atk = statAtLevel(speciesId, 'atk', level) + baseAtkBonus();
   const spd = statAtLevel(speciesId, 'spd', level);
   const dupesNow = rec ? rec.dupes : 0;
   const atMax = level >= CONFIG.maxCreatureLevel;
@@ -5547,6 +5887,19 @@ function renderEvopalStatsModal(){
         <div class="row" style="justify-content:space-between;"><span class="muted">SPD</span><span style="font-weight:800;">${spd}</span></div>
         <div class="row" style="justify-content:space-between;"><span class="muted">Dupe Progress</span><span style="font-weight:800;">${atMax ? 'MAX LEVEL' : `${Math.min(dupesNow,needed)}/${needed}`}</span></div>
       </div>
+      ${(() => {
+        const found = summariseCatchStages(speciesId);
+        if(!found.length) return `<div class="divider" style="margin:12px 0;"></div>
+          <div class="muted" style="font-size:11.5px;">Can't be found in the wild — evolve one instead.</div>`;
+        return `<div class="divider" style="margin:12px 0;"></div>
+          <div class="muted" style="font-weight:800; font-size:11px; letter-spacing:.03em; margin-bottom:6px;">WHERE TO CATCH</div>
+          <div style="display:flex; flex-direction:column; gap:5px;">
+            ${found.map(f => `<div class="row" style="justify-content:space-between;">
+              <span class="muted">World ${f.world}${f.world > (profile.unlockedWorld || 1) ? ' <span style="opacity:.7;">(locked)</span>' : ''}</span>
+              <span style="font-weight:800;">Stage${f.label.length > 1 || f.label.includes('-') ? 's' : ''} ${f.label}</span>
+            </div>`).join('')}
+          </div>`;
+      })()}
       ${renderMoveList(speciesId, level)}
       <button class="btn btn-primary btn-full" style="margin-top:16px;" onclick="closeEvopalStatsPopup();">Close</button>
     </div>
@@ -5582,9 +5935,134 @@ function renderMoveList(speciesId, level){
     </div>`;
 }
 
+// ===================== EVOLUTION COUNTDOWN =====================
+// Evolution used to happen the instant you pressed Level Up, which is why a
+// playtester reported their Evopal "evolved by itself" — it was their press,
+// but nothing marked the moment, and the pre-evolution form is retired from
+// the collection for good. So it now gets a 3-2-1 countdown you can stop.
+//
+// Stopping keeps the level you just paid for but HOLDS the evolution: that
+// record can't gain any more levels until it evolves. Evolution is deferred,
+// never cancelled, so "I want to keep my Scorch" is a real choice with a
+// real cost rather than a free opt-out.
+const EVO_COUNTDOWN_FROM = 3;      // TUNABLE
+const EVO_COUNTDOWN_TICK_MS = 1000; // TUNABLE
+
+function beginEvolutionCountdown(speciesId, ctx){
+  const rec = profile.owned.find(o => o.speciesId === speciesId);
+  if(!rec) return;
+  const sp = SPECIES[speciesId];
+  const intoName = sp.evolveInto ? SPECIES[sp.evolveInto].name : '???';
+
+  const layer = document.createElement('div');
+  layer.id = 'evo-countdown';
+  positionLayerOverApp(layer);
+  layer.innerHTML = `
+    <div class="ec-backdrop"></div>
+    <div class="ec-rays"><div class="ec-rays-spin"></div></div>
+    <div class="ec-body">
+      <div class="ec-art">${cardArt(speciesId, 150)}</div>
+      <div class="ec-title">${sp.name} is about to evolve…</div>
+      <div class="ec-sub">into ${intoName}</div>
+      <div class="ec-count" id="ecCount">${EVO_COUNTDOWN_FROM}</div>
+      <button class="btn ec-stop" id="ecStop">Stop</button>
+      <div class="ec-warn">Stopping keeps ${sp.name}, but it can't level up again until it evolves.</div>
+    </div>`;
+  document.body.appendChild(layer);
+
+  const app = document.getElementById('app');
+  const reposition = () => positionLayerOverApp(layer);
+  window.addEventListener('resize', reposition);
+
+  let n = EVO_COUNTDOWN_FROM;
+  let timer = null, stopped = false;
+
+  function cleanup(){
+    clearTimeout(timer);
+    window.removeEventListener('resize', reposition);
+    if(app) app.classList.remove('evo-shake-1','evo-shake-2','evo-shake-3');
+    layer.remove();
+  }
+
+  function tick(){
+    if(stopped) return;
+    const el = document.getElementById('ecCount');
+    if(n <= 0){
+      cleanup();
+      finishEvolutionCountdown(speciesId, ctx);
+      return;
+    }
+    if(el){
+      el.textContent = n;
+      el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop');
+    }
+    // Each tick darkens the backdrop further and shakes harder, so the
+    // pressure ramps instead of sitting flat for three seconds.
+    const step = (EVO_COUNTDOWN_FROM - n) + 1;
+    layer.classList.remove('ec-s1','ec-s2','ec-s3');
+    layer.classList.add('ec-s' + Math.min(3, step));
+    if(app){
+      app.classList.remove('evo-shake-1','evo-shake-2','evo-shake-3');
+      void app.offsetWidth;
+      app.classList.add('evo-shake-' + Math.min(3, step));
+    }
+    n--;
+    timer = setTimeout(tick, EVO_COUNTDOWN_TICK_MS);
+  }
+
+  layer.querySelector('#ecStop').addEventListener('click', () => {
+    if(stopped) return;
+    stopped = true;
+    const r = profile.owned.find(o => o.speciesId === speciesId);
+    if(r) r.evolutionHeld = true;
+    track('evolution_held', { speciesId, level: r ? r.level : null });
+    saveProfile();
+    cleanup();
+    toast(`${sp.name} stayed as it is.`);
+    render();
+  });
+
+  tick();
+}
+
+// Runs the evolution for real, then hands off to the existing level-up /
+// evolution celebration so the reveal is unchanged.
+function finishEvolutionCountdown(speciesId, ctx){
+  const rec = profile.owned.find(o => o.speciesId === speciesId);
+  if(!rec) return;
+  delete rec.evolutionHeld;
+  const beforeLevel = ctx && ctx.beforeLevel != null ? ctx.beforeLevel : rec.level;
+  const beforeHp = ctx && ctx.beforeHp != null ? ctx.beforeHp : statAtLevel(rec.speciesId, 'hp', rec.level);
+  const beforeAtk = ctx && ctx.beforeAtk != null ? ctx.beforeAtk : statAtLevel(rec.speciesId, 'atk', rec.level);
+  const evolution = tryAutoEvolve(rec);
+  saveProfile();
+  track('evolution_confirmed', { speciesId, evolvedTo: evolution ? evolution.speciesId : null });
+  track('level_up', { speciesId, level: rec.level, evolved: !!evolution, evolvedTo: evolution ? evolution.speciesId : null });
+  trackQuestProgress('levelUp', 1);
+  trackMissionProgress('levelUp', 1);
+  if(evolution) trackMissionProgress('evolveEvopals', 1);
+  const afterSpeciesId = evolution ? evolution.speciesId : rec.speciesId;
+  ui.modal = 'creatureLevelUp';
+  ui.evoAnimPlayed = false;
+  ui.levelUpInfo = {
+    speciesId: afterSpeciesId,
+    level: rec.level,
+    evolvedFromId: evolution ? speciesId : null,
+    evolvedFrom: evolution ? SPECIES[speciesId].name : null,
+    evolvedName: evolution ? evolution.name : null,
+    beforeHp, afterHp: statAtLevel(afterSpeciesId, 'hp', rec.level),
+    beforeAtk, afterAtk: statAtLevel(afterSpeciesId, 'atk', rec.level),
+    newSkills: newlyLearnedSkills(speciesId, beforeLevel, afterSpeciesId, rec.level),
+  };
+  render();
+}
+
 function levelUpCreature(speciesId, evt){
   const rec = profile.owned.find(o => o.speciesId === speciesId);
   if(!rec) return;
+  // Evolution was stopped earlier: this record is frozen at its level and the
+  // only thing the button can still do is run the countdown again.
+  if(rec.evolutionHeld){ beginEvolutionCountdown(speciesId, null); return; }
   if(rec.level >= CONFIG.maxCreatureLevel){ toast(`${SPECIES[speciesId].name} is already at max level.`); return; }
   const needed = dupesNeededForLevel(rec.level);
   if(rec.dupes < needed){ toast(`Need ${needed} duplicates to reach Lv ${rec.level+1} (have ${rec.dupes}).`); return; }
@@ -5596,6 +6074,15 @@ function levelUpCreature(speciesId, evt){
   const beforeLevel = rec.level;
   rec.dupes -= needed;
   rec.level += 1;
+  // If this level crosses the evolve threshold, hand off to the countdown
+  // rather than transforming mid-press. The level itself is already banked,
+  // so stopping still leaves them with what they paid for.
+  const spNow = SPECIES[rec.speciesId];
+  if(spNow.evolveInto && spNow.evolveLevel && rec.level >= spNow.evolveLevel){
+    saveProfile();
+    beginEvolutionCountdown(speciesId, { beforeHp, beforeAtk, beforeLevel });
+    return;
+  }
   const evolution = tryAutoEvolve(rec);
   saveProfile();
   track('level_up', { speciesId, level: rec.level, evolved: !!evolution, evolvedTo: evolution ? evolution.speciesId : null });
@@ -6162,6 +6649,73 @@ function spawnConfettiBurst(x, y){
 // visible (.gem-balance-target — battle's topbar or the Main Menu's).
 // Same persistent-layer-on-body technique as spawnConfettiBurst, for the
 // same reason: it must survive the innerHTML rebuild render() triggers.
+let _enemyTypeTooltipTimeout = null;
+// Tapping the enemy sprite explains its type matchup. Weaknesses and
+// resistances are DERIVED from typeMultiplier() rather than written out by
+// hand, so this can't drift out of sync if the chart is ever retuned — and
+// it automatically covers General (weak to every element) and any type with
+// no matchups at all.
+function enemyTypeMatchup(defEl){
+  const weak = [], resists = [];
+  Object.keys(ELEMENTS).forEach(atk => {
+    const m = typeMultiplier(atk, defEl);
+    if(m > 1) weak.push(ELEMENTS[atk]);
+    else if(m < 1) resists.push(ELEMENTS[atk]);
+  });
+  return { weak, resists };
+}
+
+function showEnemyTypeTooltip(evt, speciesId){
+  evt.stopPropagation();
+  const sp = SPECIES[speciesId];
+  if(!sp) return;
+  const el = ELEMENTS[sp.element];
+  if(!el) return;
+  const { weak, resists } = enemyTypeMatchup(sp.element);
+  const list = arr => arr.map(e => `${e.icon} ${e.name}`).join(', ');
+  let body = weak.length
+    ? `<div style="margin-top:5px;">Weak to ${list(weak)}</div>`
+    : `<div style="margin-top:5px; opacity:.75;">No type weakness</div>`;
+  if(resists.length) body += `<div style="margin-top:3px; opacity:.75;">Resists ${list(resists)}</div>`;
+
+  const rect = evt.currentTarget.getBoundingClientRect();
+  let tip = document.getElementById('enemyTypeTooltip');
+  if(!tip){
+    tip = document.createElement('div');
+    tip.id = 'enemyTypeTooltip';
+    tip.className = 'lock-tooltip type-tooltip';
+    document.body.appendChild(tip);
+  }
+  tip.innerHTML = `<b>${sp.name}</b> &middot; ${el.icon} ${el.name}${body}<div class="lock-tooltip-arrow" id="enemyTypeTooltipArrow"></div>`;
+  // Anchor to the sprite's visual middle rather than its box top: the sprite
+  // div deliberately overhangs its container, so its top edge sits well above
+  // the art the player actually tapped.
+  const centerX = rect.left + rect.width/2;
+  tip.style.left = `${centerX}px`;
+  tip.style.top = `${rect.top + rect.height*0.42}px`;
+  tip.classList.remove('visible');
+  void tip.offsetWidth;
+  tip.classList.add('visible');
+  const margin = 10;
+  const tipRect = tip.getBoundingClientRect();
+  let shiftX = 0;
+  if(tipRect.left < margin) shiftX = margin - tipRect.left;
+  else if(tipRect.right > window.innerWidth - margin) shiftX = (window.innerWidth - margin) - tipRect.right;
+  if(shiftX !== 0){
+    tip.style.left = `${centerX + shiftX}px`;
+    const arrow = document.getElementById('enemyTypeTooltipArrow');
+    if(arrow) arrow.style.left = `calc(50% - ${shiftX}px)`;
+  }
+  clearTimeout(_enemyTypeTooltipTimeout);
+  // Longer than the 2s lock tooltip — there are three lines to read here.
+  _enemyTypeTooltipTimeout = setTimeout(() => { tip.classList.remove('visible'); }, 4000);
+}
+function hideEnemyTypeTooltip(){
+  const tip = document.getElementById('enemyTypeTooltip');
+  if(tip) tip.classList.remove('visible');
+  clearTimeout(_enemyTypeTooltipTimeout);
+}
+
 let _lockTooltipTimeout = null;
 // Small speech-bubble callout for a locked nav button — points down at
 // whichever button was tapped, shows why it's locked, then auto-dismisses.
@@ -6622,6 +7176,291 @@ function renderShopTab(){
         </div>`;
       }).join('')}
     </div>
+  </div>`;
+}
+
+// ===================== THE BASE =====================
+// A persistent home for your Evopals, bought with profile.coins (the banked
+// currency, which until now had almost nothing to spend on outside the
+// in-run merchant). Four buildings, unlocked one at a time in order.
+//
+// Two of them are permanent combat buffs and two are idle producers. The
+// buffs are deliberately FLAT ADDITIVE and applied only at player-side call
+// sites — statAtLevel() is shared with enemy stat lookups, so multiplying
+// there would hand the player's upgrades straight to the enemies too.
+const BASE_MAX_LEVEL = 5;                 // TUNABLE
+const BASE_TUNING = {
+  gymHpPerLevel:        4,                // TUNABLE: flat max-HP per Gym level
+  gymAtkPerLevel:       2,                // TUNABLE: flat ATK per Gym level
+  libraryDefPerLevel:   2,                // TUNABLE: flat DEF per Library level
+  libraryElemPerLevel:  3,                // TUNABLE: flat bonus damage on ELEMENTAL skills per Library level
+  farmGoldPerHour:     15,                // TUNABLE: gold per hour, per Farm level
+  farmCapHours:         8,                // TUNABLE: how long the Farm keeps producing unattended
+  penDupesPerHourDiv:   8,                // TUNABLE: dupes/hour = penLevel / this
+  penCapHours:         12,                // TUNABLE: how long the Pen keeps producing unattended
+};
+const BASE_BUILDINGS = {
+  gym:     { name:'Gym',     order:1, costBase:120, blurb:'Train hard. Raises max HP and attack power.' },
+  farm:    { name:'Farm',    order:2, costBase:180, blurb:'Crops sell themselves. Earns gold while you are away.' },
+  library: { name:'Library', order:3, costBase:260, blurb:'Study up. Raises defence and elemental damage.' },
+  pen:     { name:'Pen',     order:4, costBase:400, blurb:'Room to roam. One Evopal slowly produces its own duplicates.' },
+};
+const BASE_ORDER = Object.keys(BASE_BUILDINGS).sort((a,b) => BASE_BUILDINGS[a].order - BASE_BUILDINGS[b].order);
+
+function defaultBaseState(){
+  return {
+    gym:     { level:0 },
+    farm:    { level:0, lastCollectedAt:null },
+    library: { level:0 },
+    pen:     { level:0, speciesId:null, lastCollectedAt:null },
+  };
+}
+function baseState(){
+  if(!profile.base) profile.base = defaultBaseState();
+  // Defensive per-key fill so a save written before a building existed still
+  // loads rather than throwing on an undefined level.
+  Object.keys(BASE_BUILDINGS).forEach(k => { if(!profile.base[k]) profile.base[k] = defaultBaseState()[k]; });
+  return profile.base;
+}
+function baseLevel(key){ return baseState()[key].level || 0; }
+function baseTabUnlocked(){ return (profile.totalRuns || 0) >= 1; }   // TUNABLE: opens after your first run
+// Buildings arrive one at a time: the next one only appears once the
+// previous one actually exists.
+function baseIsUnlocked(key){
+  const order = BASE_BUILDINGS[key].order;
+  if(order === 1) return true;
+  const prev = BASE_ORDER[order - 2];
+  return baseLevel(prev) >= 1;
+}
+function baseUpgradeCost(key){
+  const next = baseLevel(key) + 1;
+  if(next > BASE_MAX_LEVEL) return null;
+  return Math.round(BASE_BUILDINGS[key].costBase * Math.pow(1.9, next - 1));
+}
+
+// ---- combat bonuses (flat, player-side only) ----
+function baseHpBonus(){   return baseLevel('gym')     * BASE_TUNING.gymHpPerLevel; }
+function baseAtkBonus(){  return baseLevel('gym')     * BASE_TUNING.gymAtkPerLevel; }
+function baseDefBonus(){  return baseLevel('library') * BASE_TUNING.libraryDefPerLevel; }
+function baseElementalBonus(){ return baseLevel('library') * BASE_TUNING.libraryElemPerLevel; }
+
+// ---- idle production ----
+// Rate per hour for the two producers, 0 when unbuilt.
+function baseProductionRate(key){
+  const lvl = baseLevel(key);
+  if(!lvl) return 0;
+  if(key === 'farm') return lvl * BASE_TUNING.farmGoldPerHour;
+  if(key === 'pen')  return lvl / BASE_TUNING.penDupesPerHourDiv;
+  return 0;
+}
+function baseCapHours(key){ return key === 'farm' ? BASE_TUNING.farmCapHours : BASE_TUNING.penCapHours; }
+// Whole units banked so far, and how full the store is. Production continues
+// while the game is closed and stops at the cap, so there's a reason to come
+// back but never a punishing one for missing a day.
+function basePending(key){
+  const rate = baseProductionRate(key);
+  const st = baseState()[key];
+  if(!rate || !st.lastCollectedAt) return { units:0, pct:0, capped:false, rate:rate };
+  const hours = Math.max(0, (Date.now() - st.lastCollectedAt) / 3600000);
+  const capHours = baseCapHours(key);
+  const cappedHours = Math.min(hours, capHours);
+  const units = Math.floor(cappedHours * rate);
+  return {
+    units,
+    pct: Math.max(0, Math.min(1, cappedHours / capHours)),
+    capped: hours >= capHours,
+    rate,
+  };
+}
+function baseCollect(key){
+  const { units, rate } = basePending(key);
+  if(units <= 0){ toast('Nothing ready yet.'); return; }
+  const st = baseState()[key];
+  if(key === 'farm'){
+    profile.coins = (profile.coins || 0) + units;
+    toast(`Collected ${units} gold.`);
+  } else {
+    const sid = st.speciesId;
+    const rec = (profile.owned || []).find(o => o.speciesId === sid);
+    if(!rec){ toast('Assign an Evopal to the Pen first.'); return; }
+    rec.dupes = (rec.dupes || 0) + units;
+    toast(`${SPECIES[sid].name} +${units} duplicate${units>1?'s':''}.`);
+  }
+  // Advance the clock by exactly the time those whole units cost, so the
+  // leftover fraction of an hour carries over instead of being thrown away
+  // every time someone taps Collect early.
+  st.lastCollectedAt = Math.min(Date.now(), st.lastCollectedAt + (units / rate) * 3600000);
+  track('base_collect', { building: key, amount: units, level: baseLevel(key) });
+  saveProfile();
+  render();
+}
+function baseBuild(key){
+  const cost = baseUpgradeCost(key);
+  if(cost === null){ toast('Already at max level.'); return; }
+  if(!baseIsUnlocked(key)){ toast('Not available yet.'); return; }
+  if((profile.coins || 0) < cost){ toast('Not enough gold.'); return; }
+  profile.coins -= cost;
+  const st = baseState()[key];
+  const wasNew = st.level === 0;
+  st.level += 1;
+  if((key === 'farm' || key === 'pen') && !st.lastCollectedAt) st.lastCollectedAt = Date.now();
+  if(key === 'pen' && !st.speciesId){
+    // Default the Pen to whoever leads the squad, so it starts producing
+    // immediately instead of sitting idle behind an unmade choice.
+    st.speciesId = (profile.activeSquad || [])[0] || (profile.owned[0] && profile.owned[0].speciesId) || null;
+  }
+  track('base_build', { building: key, level: st.level, isNew: wasNew });
+  toast(wasNew ? `${BASE_BUILDINGS[key].name} built!` : `${BASE_BUILDINGS[key].name} upgraded to Lv ${st.level}.`);
+  saveProfile();
+  render();
+}
+function basePenAssign(speciesId){
+  const st = baseState().pen;
+  st.speciesId = speciesId;
+  if(!st.lastCollectedAt) st.lastCollectedAt = Date.now();
+  ui.basePenPicking = false;
+  saveProfile();
+  render();
+}
+
+// ---- building art: same flat-fill, thick-ink look as the rest of the game ----
+function baseBuildingArt(key){
+  const ink = 'stroke="#23262F" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"';
+  const art = {
+    gym: `<rect x="14" y="40" width="92" height="46" rx="6" fill="#5A6072" ${ink}/>
+      <path d="M14 42 60 16l46 26z" fill="#3B3F55" ${ink}/>
+      <rect x="40" y="54" width="40" height="32" rx="4" fill="#FFE0A8" ${ink}/>
+      <path d="M48 70h24" stroke="#23262F" stroke-width="5" stroke-linecap="round"/>
+      <rect x="42" y="63" width="8" height="14" rx="3" fill="#E9714A" ${ink}/>
+      <rect x="70" y="63" width="8" height="14" rx="3" fill="#E9714A" ${ink}/>`,
+    farm: `<rect x="16" y="46" width="88" height="40" rx="5" fill="#F2B705" ${ink}/>
+      <path d="M16 48 60 20l44 28z" fill="#C2521F" ${ink}/>
+      <path d="M28 86V66h16v20M76 86V66h16v20" fill="#7CC262" ${ink}/>
+      <circle cx="36" cy="62" r="6" fill="#E9714A" ${ink}/><circle cx="84" cy="62" r="6" fill="#E9714A" ${ink}/>`,
+    library: `<rect x="18" y="34" width="84" height="52" rx="6" fill="#3E8FE0" ${ink}/>
+      <path d="M18 36 60 14l42 22z" fill="#1E5FA0" ${ink}/>
+      <rect x="34" y="52" width="16" height="34" rx="3" fill="#FFF3D8" ${ink}/>
+      <rect x="56" y="52" width="16" height="34" rx="3" fill="#FFE0A8" ${ink}/>
+      <rect x="78" y="58" width="12" height="28" rx="3" fill="#FFF3D8" ${ink}/>`,
+    pen: `<path d="M12 86V56h96v30z" fill="#9BBC53" ${ink}/>
+      <path d="M22 86V50M44 86V50M66 86V50M88 86V50M12 60h96M12 72h96" ${ink}/>
+      <path d="M30 40q0-14 14-14t14 14" fill="#7CC262" ${ink}/>
+      <circle cx="78" cy="34" r="12" fill="#FFD25A" ${ink}/>`,
+  };
+  return `<svg viewBox="0 0 120 100" style="width:100%; height:74px; display:block;">${art[key] || ''}</svg>`;
+}
+
+function baseEffectLine(key, level){
+  if(key === 'gym')     return `+${level * BASE_TUNING.gymHpPerLevel} HP · +${level * BASE_TUNING.gymAtkPerLevel} ATK`;
+  if(key === 'library') return `+${level * BASE_TUNING.libraryDefPerLevel} DEF · +${level * BASE_TUNING.libraryElemPerLevel} elemental dmg`;
+  if(key === 'farm')    return `${level * BASE_TUNING.farmGoldPerHour} gold / hour`;
+  if(key === 'pen')     return `${(level / BASE_TUNING.penDupesPerHourDiv).toFixed(2)} dupes / hour`;
+  return '';
+}
+
+function renderBaseTab(){
+  if(!baseTabUnlocked()){
+    return `<div class="screen no-anim center-text" style="justify-content:center;">
+      <div>${lockIcon(40)}</div>
+      <div class="display" style="font-size:20px; margin-top:6px;">Your Base</div>
+      <div class="muted" style="margin-top:6px;">Finish a run to start building.</div>
+    </div>`;
+  }
+  return `<div class="screen no-anim">
+    <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:4px;">
+      <div>
+        <div class="display" style="font-size:20px;">Your Base</div>
+        <div class="muted" style="font-size:12px;">Spend gold here. Everything you build is permanent.</div>
+      </div>
+      <div class="stat-pill" style="flex:none;"><span class="coin-icn" style="background:none;border:none;padding:0;">${goldIcon(20)}</span>${profile.coins || 0}</div>
+    </div>
+
+    <div style="display:flex; flex-direction:column; gap:12px; margin-top:12px;">
+      ${BASE_ORDER.map(key => {
+        const b = BASE_BUILDINGS[key];
+        const lvl = baseLevel(key);
+        const unlocked = baseIsUnlocked(key);
+        const cost = baseUpgradeCost(key);
+        const maxed = cost === null;
+        const affordable = !maxed && (profile.coins || 0) >= cost;
+
+        if(!unlocked){
+          const prev = BASE_BUILDINGS[BASE_ORDER[b.order - 2]].name;
+          return `<div class="creature-tile" style="padding:14px; opacity:.65;">
+            <div style="display:flex; align-items:center; gap:12px;">
+              <div style="width:76px; flex:none; filter:grayscale(1); opacity:.5;">${baseBuildingArt(key)}</div>
+              <div style="min-width:0;">
+                <div class="display" style="font-size:16px;">${lockIcon(14)} ${b.name}</div>
+                <div class="muted" style="font-size:11.5px; margin-top:3px;">Build the ${prev} first.</div>
+              </div>
+            </div>
+          </div>`;
+        }
+
+        const producer = key === 'farm' || key === 'pen';
+        const pending = producer && lvl > 0 ? basePending(key) : null;
+        const penSpecies = key === 'pen' ? baseState().pen.speciesId : null;
+
+        return `<div class="creature-tile" style="padding:14px;">
+          <div style="display:flex; align-items:flex-start; gap:12px;">
+            <div style="width:76px; flex:none;">${baseBuildingArt(key)}</div>
+            <div style="flex:1; min-width:0;">
+              <div style="display:flex; align-items:center; justify-content:space-between; gap:8px;">
+                <div class="display" style="font-size:16px;">${b.name}</div>
+                <span style="background:${lvl ? 'var(--ember)' : 'var(--surface-line)'}; color:#fff; font-size:11px; font-weight:800; padding:2px 8px; border-radius:10px; border:2px solid var(--ink);">${lvl ? 'Lv ' + lvl : 'Not built'}</span>
+              </div>
+              <div class="muted" style="font-size:11.5px; margin-top:4px;">${b.blurb}</div>
+              ${lvl ? `<div style="font-size:12px; font-weight:800; margin-top:5px; color:var(--action-blue);">${baseEffectLine(key, lvl)}</div>` : ''}
+            </div>
+          </div>
+
+          ${key === 'pen' && lvl > 0 ? `
+            <div class="divider" style="margin:11px 0 9px;"></div>
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:8px;">
+              <div style="display:flex; align-items:center; gap:8px; min-width:0;">
+                ${penSpecies ? cardArt(penSpecies, 30) : ''}
+                <div style="min-width:0;">
+                  <div class="muted" style="font-size:10.5px; letter-spacing:.03em; font-weight:800;">ROAMING</div>
+                  <div style="font-weight:800; font-size:13px;">${penSpecies ? SPECIES[penSpecies].name : 'Nobody yet'}</div>
+                </div>
+              </div>
+              <button class="btn" style="flex:none; padding:7px 12px; font-size:12px;" onclick="ui.basePenPicking = !ui.basePenPicking; render();">Change</button>
+            </div>
+            ${ui.basePenPicking ? `<div style="display:flex; gap:8px; overflow-x:auto; padding:10px 2px 2px;">
+              ${(profile.owned || []).map(o => `<button class="btn" style="flex:none; padding:6px; ${o.speciesId === penSpecies ? 'box-shadow:0 0 0 3px var(--ember), 0 3px 0 var(--ink);' : ''}" onclick="basePenAssign('${o.speciesId}')">
+                ${cardArt(o.speciesId, 34)}
+              </button>`).join('') || '<span class="muted" style="font-size:11.5px;">No Evopals yet.</span>'}
+            </div>` : ''}
+          ` : ''}
+
+          ${producer && lvl > 0 ? `
+            <div class="divider" style="margin:11px 0 9px;"></div>
+            <div style="display:flex; align-items:center; gap:10px;">
+              <div style="flex:1; min-width:0;">
+                <div style="height:12px; border-radius:999px; border:3px solid var(--ink); background:var(--surface-raised); overflow:hidden;">
+                  <div style="height:100%; width:${Math.round(pending.pct * 100)}%; background:${pending.capped ? 'var(--ember)' : 'var(--verdant)'};"></div>
+                </div>
+                <div class="muted" style="font-size:10.5px; margin-top:4px;">
+                  ${pending.capped ? 'Full — collect to keep producing' : `Stores up to ${baseCapHours(key)}h`}
+                </div>
+              </div>
+              <button class="btn ${pending.units > 0 ? 'btn-primary' : 'btn-disabled'}" style="flex:none; padding:9px 14px; font-size:12.5px;" ${pending.units > 0 ? `onclick="baseCollect('${key}')"` : 'disabled'}>
+                ${pending.units > 0 ? `Collect ${pending.units}${key === 'farm' ? '' : '×'}` : 'Collect'}
+              </button>
+            </div>
+          ` : ''}
+
+          <div style="margin-top:11px;">
+            ${maxed
+              ? `<button class="btn btn-disabled" style="width:100%; padding:10px;" disabled>Max level</button>`
+              : `<button class="btn ${affordable ? 'btn-primary' : 'btn-disabled'}" style="width:100%; padding:10px;" ${affordable ? `onclick="baseBuild('${key}')"` : 'disabled'}>
+                  ${lvl ? 'Upgrade' : 'Build'} — ${cost} gold
+                </button>`}
+          </div>
+        </div>`;
+      }).join('')}
+    </div>
+    <div class="muted" style="font-size:11.5px; margin-top:14px;">Gym and Library bonuses apply to every Evopal, in every run.</div>
   </div>`;
 }
 
