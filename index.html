@@ -931,6 +931,33 @@
     0%,100%{ opacity:.45; transform:translateY(0); }
     50%{ opacity:1; transform:translateY(3px); }
   }
+  /* ---- shinies ---- */
+  /* The recolour itself is an inline hue-rotate (per species, see
+     shinyFilter). Black outlines are achromatic so hue-rotate leaves the
+     linework untouched — only the fills shift. */
+  /* No animation on .shiny-art: an animation that touches `filter` overrides
+     the inline hue-rotate set by shinyFilter(), which silently cancelled the
+     whole recolour. The shimmer lives on .shiny-sparkles instead. */
+  .shiny-tile{ position:relative; }
+  .shiny-tile::after{
+    content:''; position:absolute; inset:0; border-radius:13px; pointer-events:none;
+    box-shadow:inset 0 0 0 3px #F2B705, inset 0 0 14px rgba(242,183,5,.55); z-index:4;
+  }
+  /* Bottom-left of the art area on purpose: the info button owns top-left
+     and the Lv badge owns top-right, so anywhere up top clips one of them. */
+  .shiny-star{
+    position:absolute; bottom:2px; left:2px; z-index:5; width:20px; height:20px; border-radius:50%;
+    background:linear-gradient(180deg,#FFE9A8,#F2B705); border:2px solid var(--ink);
+    display:flex; align-items:center; justify-content:center; font-size:11px; line-height:1;
+    box-shadow:0 2px 0 rgba(0,0,0,.25);
+  }
+  .shiny-sparkles{ position:absolute; inset:0; pointer-events:none; z-index:4; overflow:hidden; border-radius:13px; }
+  .shiny-sparkles i{
+    position:absolute; width:9px; height:9px; background:#FFF3D8; border-radius:50%;
+    box-shadow:0 0 8px 3px rgba(255,225,140,.95); opacity:0;
+    animation:shinyTwinkle 2.2s ease-in-out infinite;
+  }
+  @keyframes shinyTwinkle{ 0%,100%{ opacity:0; transform:scale(.3); } 45%{ opacity:1; transform:scale(1); } }
   /* ---- base scene ---- */
   .base-sheet{ background:var(--surface); border:3px solid var(--ink); border-radius:18px; box-shadow:0 3px 0 var(--ink); padding:12px 14px; }
   .base-bob{ animation:baseBob 1.4s ease-in-out infinite; transform-box:fill-box; transform-origin:center; }
@@ -3242,6 +3269,8 @@ function enterNode(nodeIdOrIndex){
   if(node.type === 'battle' || node.type === 'boss' || node.type === 'reward'){
     const level = isBranchWorld ? node.level : world1NodeLevel(run.stage, nodeIdOrIndex);
     const enemy = spawnEnemyForNode(node, level, isStartNode, node.type === 'boss');
+    // Rolled per encounter, so the surprise happens when it appears.
+    enemy.isShiny = rollShiny();
     // Stage 1-5's boss is a two-phase gauntlet — defeating the first Evopal
     // immediately summons a second rather than ending the fight (see
     // handleEnemyDefeated). enemyBaseLevel is stashed here so the second
@@ -3254,7 +3283,16 @@ function enterNode(nodeIdOrIndex){
       bossPhase: isGauntletBoss ? 1 : undefined,
       bossPhaseTotal: isGauntletBoss ? 2 : undefined,
       activeIdx: run.squad.findIndex(c => c.currentHp > 0),
-      log: [ (node.type==='boss' ? 'A powerful foe blocks the path!' : node.type==='reward' ? 'A guardian stands over a stash of supplies!' : 'A wild Evopal appears!') ],
+      log: (() => {
+        const opener = node.type==='boss' ? 'A powerful foe blocks the path!'
+          : node.type==='reward' ? 'A guardian stands over a stash of supplies!'
+          : 'A wild Evopal appears!';
+        const bark = enemyBark(enemy.speciesId, node.type === 'boss');
+        // A shiny is worth calling out in the log as well as recolouring,
+        // since it's the rarest thing that can happen in an encounter.
+        const shinyLine = enemy.isShiny ? `It's a SHINY ${SPECIES[enemy.speciesId].name}!` : null;
+        return [opener, shinyLine, bark].filter(Boolean);
+      })(),
       menu: 'main',
       captureUsed: false,
       catchAttempts: 0,
@@ -4483,6 +4521,11 @@ function applyCaptureResult(outcome){
   track('capture_attempt', { speciesId: battle.enemy.speciesId, outcome, isFirst: !profile.dex[battle.enemy.speciesId] });
   if(outcome === 'success'){
     const caughtSpeciesId = battle.enemy.speciesId;
+    if(battle.enemy.isShiny){
+      profile.dex[caughtSpeciesId] = profile.dex[caughtSpeciesId] || { caught:0, highestLevel:0 };
+      profile.dex[caughtSpeciesId].shiny = true;
+      track('shiny_caught', { speciesId: caughtSpeciesId, level: battle.enemy.level });
+    }
     const existing = profile.owned.find(o => o.speciesId === caughtSpeciesId);
     if(existing){
       // Catching a higher-level copy of something you already own now
@@ -4492,6 +4535,10 @@ function applyCaptureResult(outcome){
       // never move a creature backwards.
       existing.level = Math.max(existing.level, battle.enemy.level);
       existing.dupes += 1;
+      // A shiny catch upgrades the look of the record you already own and
+      // leaves level/dupes alone. It's one-way: a later normal catch of the
+      // same species can't take the shiny away.
+      if(battle.enemy.isShiny) existing.isShiny = true;
       // run.squad is a detached snapshot taken when the run began (each
       // member's level is copied by value, not a live reference into
       // profile.owned) — so without this, the update above would correctly
@@ -4503,7 +4550,7 @@ function applyCaptureResult(outcome){
         });
       }
     }
-    else profile.owned.push({ speciesId: caughtSpeciesId, level: battle.enemy.level, dupes: 0 });
+    else profile.owned.push({ speciesId: caughtSpeciesId, level: battle.enemy.level, dupes: 0, isShiny: !!battle.enemy.isShiny });
     const d = profile.dex[caughtSpeciesId] || { caught:0, highestLevel:0 };
     d.caught++; d.highestLevel = Math.max(d.highestLevel, battle.enemy.level);
     profile.dex[caughtSpeciesId] = d;
@@ -4672,9 +4719,60 @@ function lockIcon(px){
 function goldIcon(px){
   return `<img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAMAAACdt4HsAAAAe1BMVEUAAAAXFxYhIB8jIyElJSQtLCsxMC4wMC8xLy8yMjE0NDM3NzZdVD11Z0c4NTC4nmCZhFApKSrHq2eulFWMeEgeICTxzHTXuGy6oGJmWToXGiP/4Hz61Xf/0Vn2xlbgv2/nu1XetVTJpE+gildzYzxRSTVBPC8KEB4ABx5i6vqpAAAAG3RSTlMACRwdLE9ecIyPs8r6+/v8/Pz9/f39/v7+/v5PUEodAAADMUlEQVR42u1Xe5OiMAzXXViOV2ikBYmCyFnZ7/8Jb2ihVnko7v11cxnHUUh+TfPOZvPv0tb5+hVCR4Hvfm7XSrsBIpHAjgQRou+swHB8JIKIp7v8lJ3yXcojIIHeixBOgIRxkh1typIYCP0XILY+EjAlnQ0Y+kfGgMB9ejwQduLZCKB7yFEEy0p4SEWumQfZ4Yf65BGBsyDvo2BGPE9jCYAAMk5zA8EEOgvyuD/0rEwSEYKUEpCI5HCvwx7RnZfPteoZhxYL1tRVR3XDCmyR61fHHc7o4Bn5BFrg56qsBiqrM4cWkkUEB2mv5Tkhr2/SPUbNkbhG2AsY+2ILxA7KXUUrm0dxBdHINlIcB0bh2ABUaHfJtqjmqGil9mok3NEFMNev2ks1T5c2Ulw5Pl4iJKYMwBfO1zpwZQZO/oMCoPyckLy7tvXdk6RExQngnQqBViADbCzRhksAkLyxYJr+KEae7QJE9ZS3XPPxS2d0FYpdIHZuuTCNzFuuzkJbBVfE+iHo2Csv3wUnKtLub50WRPzyfdHYNWgVYjuaAkqUWoMCVVUQXRtjg+ZKNBi35K26bmKZcavudTxKrA0XybtQlmSwzyhVwFhmdFB5NzenVA1dH/x3pca4klTIRPhhTEC8qzopsdI46yGay8Y4uGSUduyc3FsYqyexOaShcTgV1ttYn2eMEIrdnQlKTukIIDVWqLURdhgMAKDzAMCEm7HmjWo0QQqg8yG8AZyUWS2OiTSw8JXTcoQbgEpz6wg5ASAtBTU/3F/hBxqEb9rAAAT4lhdE+Nfi4MeR+DGVC/dWqO1cEH0uOONsPFvZaLWGsl7Oxo2/rh781vUgsGuqrkgwX5GKUUWyW8OoJrKVNXHjvVGVg7vO+EZfcB5aI1/VmUbtddvXhGPxpDcWfW8cjQiuiNZ054fW2LfXFfPB5IQhXp5QaGbGwd1LM1KO6E1PqQZhakqDYUrLEf2ZOc99cU705ydlpKeTKi3Iq1k7ejIrz9zf+CIQ/Ug6Na0zXJ61tSFgYV94eeWY2liQMHBeXLk8FKOdidB31ux8fre14W1rC9zVm9+n6wVqbwz9L2e7+U/z9Af6swQgn24THQAAAABJRU5ErkJggg==" style="width:${px}px;height:${px}px;object-fit:contain;vertical-align:-${Math.round(px*0.2)}px;">`;
 }
-function cardArt(speciesId, px){
+// ===================== SHINIES =====================
+// A rare recolour. Purely cosmetic — same species, same stats — so it can
+// never affect balance. Stored as a flag on the record you already own
+// rather than as a separate entry: profile.owned is keyed by speciesId and
+// the dex, evolution and level-up paths all assume one record per species,
+// so a second entry would break all three. Catching a shiny of something
+// you own therefore keeps its level and dupes and just changes how it looks.
+// ===================== ENEMY PERSONALITIES =====================
+// A one-line bark when a wild Evopal appears, so encounters read as meetings
+// rather than as the same fight with a different sprite. Species-specific
+// lines win where they exist; otherwise it falls back to the element pool,
+// so every creature — including any added later — always has something to
+// say without needing its own entry.
+const ENEMY_BARKS_BY_ELEMENT = {
+  ember:   ['{n} kicks up a cloud of ash.', '{n} snorts a little flame.', '{n} is radiating heat.', '{n} paws at the scorched ground.'],
+  verdant: ['{n} rustles out of the undergrowth.', '{n} shakes leaves from its back.', '{n} sizes you up from the grass.', '{n} smells faintly of rain.'],
+  tide:    ['{n} shakes itself dry.', '{n} splashes down in front of you.', '{n} bubbles a warning.', '{n} circles through a puddle.'],
+  volt:    ['{n} crackles with static.', 'The air around {n} hums.', '{n} makes your hair stand on end.', '{n} sparks impatiently.'],
+  general: ['{n} blocks the path.', '{n} eyes you warily.', '{n} puffs itself up.', '{n} does not look pleased.'],
+};
+const ENEMY_BARKS_BY_SPECIES = {                                    // TUNABLE
+  sproutling: ['Squire looks nervous, but stands its ground.', 'Squire clutches its acorn a little tighter.'],
+  cinderkit:  ['Scorch bounces on its paws, tail blazing.'],
+  peckit:     ['Peckit tilts its head at you, unimpressed.'],
+};
+function enemyBark(speciesId, isBoss){
+  const sp = SPECIES[speciesId];
+  if(!sp) return null;
+  if(isBoss) return `${sp.name} has been waiting for you.`;
+  const pool = ENEMY_BARKS_BY_SPECIES[speciesId] || ENEMY_BARKS_BY_ELEMENT[sp.element] || ENEMY_BARKS_BY_ELEMENT.general;
+  return pool[Math.floor(Math.random() * pool.length)].replace(/\{n\}/g, sp.name);
+}
+
+const SHINY_CHANCE = 1/200;   // TUNABLE
+// Hue derived from the species id so a given species always shines the same
+// colour, and every creature gets a distinct one for free — no new art.
+function shinyHue(speciesId){
+  let h = 0;
+  for(let i = 0; i < speciesId.length; i++) h = (h * 31 + speciesId.charCodeAt(i)) % 360;
+  return 90 + (h % 210);   // 90-300deg: always clearly different from the original
+}
+function shinyFilter(speciesId){
+  return `filter: hue-rotate(${shinyHue(speciesId)}deg) saturate(1.45) brightness(1.06);`;
+}
+function isShinyOwned(speciesId){
+  const rec = (profile.owned || []).find(o => o.speciesId === speciesId);
+  return !!(rec && rec.isShiny);
+}
+function rollShiny(){ return Math.random() < SHINY_CHANCE; }
+
+function cardArt(speciesId, px, shiny){
   const art = CREATURE_ART[speciesId];
-  if(art) return `<img src="${art.card}" style="width:${px}px; height:${px}px; object-fit:contain; vertical-align:middle;" alt="${SPECIES[speciesId].name}">`;
+  const sh = shiny === undefined ? isShinyOwned(speciesId) : shiny;
+  if(art) return `<img class="${sh?'shiny-art':''}" src="${art.card}" style="width:${px}px; height:${px}px; object-fit:contain; vertical-align:middle; ${sh?shinyFilter(speciesId):''}" alt="${SPECIES[speciesId].name}">`;
   return `<span style="font-size:${Math.round(px*0.62)}px; vertical-align:middle;">${SPECIES[speciesId].icon}</span>`;
 }
 // Small circular element icon, meant to sit in a corner of any creature card (Team, Shop, etc.)
@@ -4758,17 +4856,19 @@ const BATTLE_SPRITE_ENEMY_SHIFT_Y = {
   peckatrix: 210, // 2x-scaled enemy Peckatrix — without this it overlaps the enemy HP card above it
 };
 function battleSpriteEnemyShiftY(speciesId){ return BATTLE_SPRITE_ENEMY_SHIFT_Y[speciesId] || 0; }
-function battleArt(speciesId, px, variant){
+function battleArt(speciesId, px, variant, shiny){
   const art = CREATURE_ART[speciesId];
+  const sh = shiny === undefined ? isShinyOwned(speciesId) : shiny;
   if(art){
     const src = (variant === 'front' ? art.battleFront : art.battleBack) || art.battleFront || art.battleBack;
-    if(src) return `<img src="${src}" style="width:${px}px; height:${px}px; object-fit:contain;" alt="${SPECIES[speciesId].name}">`;
+    if(src) return `<img class="${sh?'shiny-art':''}" src="${src}" style="width:${px}px; height:${px}px; object-fit:contain; ${sh?shinyFilter(speciesId):''}" alt="${SPECIES[speciesId].name}">`;
   }
   return `<span style="font-size:${Math.round(px*0.62)}px;">${SPECIES[speciesId].icon}</span>`;
 }
-function asleepArt(speciesId, px){
+function asleepArt(speciesId, px, shiny){
   const art = CREATURE_ART[speciesId];
-  if(art && art.asleep) return `<img src="${art.asleep}" style="width:${px}px; height:${px}px; object-fit:contain;" alt="${SPECIES[speciesId].name} asleep">`;
+  const sh = shiny === undefined ? isShinyOwned(speciesId) : shiny;
+  if(art && art.asleep) return `<img class="${sh?'shiny-art':''}" src="${art.asleep}" style="width:${px}px; height:${px}px; object-fit:contain; ${sh?shinyFilter(speciesId):''}" alt="${SPECIES[speciesId].name} asleep">`;
   // Fallback for creatures without a dedicated asleep pose yet: emoji + zzz.
   return `<span style="font-size:${Math.round(px*0.55)}px; position:relative; display:inline-block;">${SPECIES[speciesId].icon}<span style="position:absolute; top:-6px; right:-14px; font-size:${Math.round(px*0.3)}px;">💤</span></span>`;
 }
@@ -5436,7 +5536,7 @@ function renderBattle(){
         const eSize = Math.round(150 * eScale);
         const eRight = -10 - battleSpriteEnemyShiftX(eSpec.id);
         const eBottom = -100 - battleSpriteEnemyShiftY(eSpec.id); // more negative = further down, clearing the topbar
-        return `<div id="enemy-sprite" onclick="showEnemyTypeTooltip(event, '${eSpec.id}')" style="position:absolute; right:${eRight}px; bottom:${eBottom}px; width:${eSize}px; height:${eSize}px; z-index:4; cursor:pointer;" class="${(playSpawnAnim || playEnemySwitchInAnim) ? 'creature-spawn-in' : ''}">${battleArt(eSpec.id, eSize, 'front')}</div>`;
+        return `<div id="enemy-sprite" onclick="showEnemyTypeTooltip(event, '${eSpec.id}')" style="position:absolute; right:${eRight}px; bottom:${eBottom}px; width:${eSize}px; height:${eSize}px; z-index:4; cursor:pointer;" class="${(playSpawnAnim || playEnemySwitchInAnim) ? 'creature-spawn-in' : ''}">${battleArt(eSpec.id, eSize, 'front', !!battle.enemy.isShiny)}</div>`;
       })()}
     </div>
 
@@ -5570,6 +5670,46 @@ function renderItemFoundModal(){
 }
 
 function renderShopModal(){
+  // Step two: something was just bought and hasn't been committed yet. The
+  // backdrop is deliberately inert here — a stray tap outside shouldn't be
+  // able to drop an item the player has already paid for.
+  if(ui.shopPending){
+    const item = ITEMS[ui.shopPending.itemId];
+    const squad = (run && run.squad) ? run.squad : [];
+    const anyValid = squad.some(inst => !itemUseBlockedReason(item, inst));
+    return `<div class="modal-backdrop">
+      <div class="modal-sheet" onclick="event.stopPropagation()">
+        <div class="eyebrow">Purchased</div>
+        <div class="display" style="font-size:20px; margin:4px 0 2px;">${item.icon} ${item.name}</div>
+        <div class="muted" style="font-size:12px; margin-bottom:12px;">${item.desc}</div>
+        ${ui.shopUseTarget ? `
+          <div class="muted" style="font-size:11.5px; font-weight:800; letter-spacing:.03em; margin-bottom:8px;">USE ON WHICH EVOPAL?</div>
+          <div style="display:flex; flex-direction:column; gap:8px;">
+            ${squad.map((inst, i) => {
+              const sp = SPECIES[inst.speciesId];
+              const blocked = itemUseBlockedReason(item, inst);
+              const hp = Math.max(0, inst.currentHp), mx = maxHp(inst);
+              return `<button class="btn ${blocked ? 'btn-disabled' : 'btn-primary'}" style="width:100%; gap:10px; display:flex; align-items:center; text-align:left;" ${blocked ? 'disabled' : `onclick="shopUseOn(${i})"`}>
+                ${cardArt(inst.speciesId, 34)}
+                <div style="flex:1; min-width:0;">
+                  <div class="sk-name">${sp.name} <span style="opacity:.75; font-weight:700;">Lv ${inst.level}</span></div>
+                  <div class="sk-desc">${blocked ? blocked : `${hp} / ${mx} HP`}</div>
+                </div>
+              </button>`;
+            }).join('') || '<div class="muted" style="font-size:12px;">No Evopals in this run.</div>'}
+          </div>
+          <button class="btn btn-ghost btn-full" style="margin-top:12px;" onclick="ui.shopUseTarget=null; render();">Back</button>
+        ` : `
+          <div style="display:flex; flex-direction:column; gap:8px;">
+            <button class="btn ${anyValid ? 'btn-primary' : 'btn-disabled'} btn-full" ${anyValid ? 'onclick="ui.shopUseTarget=true; render();"' : 'disabled'}>Use now</button>
+            <button class="btn btn-full" onclick="shopStash()">Put in bag</button>
+          </div>
+          ${anyValid ? '' : '<div class="muted center-text" style="font-size:11px; margin-top:8px;">Nobody in your squad can use this right now.</div>'}
+        `}
+      </div>
+    </div>`;
+  }
+
   return `<div class="modal-backdrop" onclick="if(event.target===this){ui.modal=null; if(!run){render();} else {advanceNode();}}">
     <div class="modal-sheet" onclick="event.stopPropagation()">
       <div class="eyebrow">Merchant</div>
@@ -5596,9 +5736,65 @@ function buyItem(id){
   const item = ITEMS[id];
   if(run.gold < item.price){ toast('Not enough Coins.'); return; }
   run.gold -= item.price;
-  profile.inventory[id] = (profile.inventory[id]||0)+1;
+  // Gold is spent here, but the item isn't banked yet — the next step decides
+  // whether it goes in the bag or is used on the spot. shopPending holds it in
+  // limbo so it can't be lost: every exit from that step commits it somewhere.
+  ui.shopPending = { itemId: id };
+  ui.shopUseTarget = null;
   saveProfile();
-  toast(`Bought ${item.name}.`);
+  render();
+}
+
+// ---- what happens after a purchase ----
+function shopStash(){
+  const p = ui.shopPending;
+  if(!p) return;
+  profile.inventory[p.itemId] = (profile.inventory[p.itemId] || 0) + 1;
+  ui.shopPending = null;
+  saveProfile();
+  toast(`${ITEMS[p.itemId].name} added to your bag.`);
+  render();
+}
+// Why a given squad member can't take this item — null when they can. Keeping
+// the reason (rather than just a boolean) lets the picker say WHY a target is
+// greyed out instead of just refusing the tap.
+function itemUseBlockedReason(item, inst){
+  if(item.revive) return inst.currentHp > 0 ? 'Not fainted' : null;
+  if(inst.currentHp <= 0) return 'Fainted';
+  if(item.heal) return inst.currentHp >= maxHp(inst) ? 'Full HP' : null;
+  if(item.refillEnergy){
+    const full = skillEnergyFull(inst);
+    const cur = inst.skillEnergy || {};
+    const anyMissing = Object.keys(full).some(k => (cur[k] === undefined ? full[k] : cur[k]) < full[k]);
+    return anyMissing ? null : 'Moves are full';
+  }
+  return null;
+}
+function shopUseOn(idx){
+  const p = ui.shopPending;
+  if(!p || !run || !run.squad || !run.squad[idx]) return;
+  const item = ITEMS[p.itemId];
+  const inst = run.squad[idx];
+  if(itemUseBlockedReason(item, inst)) return;
+  const name = SPECIES[inst.speciesId].name;
+  if(item.revive){
+    inst.currentHp = Math.round(maxHp(inst) * 0.5);
+    toast(`${name} was revived!`);
+  } else if(item.heal){
+    const before = inst.currentHp;
+    inst.currentHp = Math.min(maxHp(inst), inst.currentHp + item.heal);
+    toast(`${name} recovered ${inst.currentHp - before} HP.`);
+    trackQuestProgress('healEvopals', 1);
+  } else if(item.refillEnergy){
+    inst.skillEnergy = skillEnergyFull(inst);
+    toast(`${name}'s moves feel recharged!`);
+  }
+  // Used straight from the merchant, so it never enters the bag — but it
+  // still counts toward item-use quests exactly as an in-battle use would.
+  trackMissionProgress('useItems', 1);
+  track('shop_item_used_now', { itemId: p.itemId, speciesId: inst.speciesId });
+  ui.shopPending = null;
+  saveProfile();
   render();
 }
 
@@ -5713,9 +5909,10 @@ function renderTeamTab(){
           if(sid){
             const rec = owned.find(o => o.speciesId === sid);
             const sp = SPECIES[sid];
-            return `<div class="creature-tile selected" onclick="handleSlotTap(${i})">
+            return `<div class="creature-tile selected ${rec.isShiny?'shiny-tile':''}" onclick="handleSlotTap(${i})">${rec.isShiny?`<div class="shiny-sparkles"><i style="left:14%;top:22%;animation-delay:0s"></i><i style="left:74%;top:16%;animation-delay:.5s"></i><i style="left:56%;top:64%;animation-delay:1s"></i><i style="left:26%;top:70%;animation-delay:1.5s"></i></div>`:''}
               <div class="icon" style="position:relative; padding:16px 0 12px;">
                 ${cardArt(sp.id, 68)}
+                ${rec.isShiny?`<span class="shiny-star">★</span>`:''}
                 <button onclick="event.stopPropagation(); showEvopalStatsPopup('${sp.id}');" style="position:absolute; top:2px; left:2px; width:20px; height:20px; border-radius:50%; background:#fff; border:2px solid var(--ink); display:flex; align-items:center; justify-content:center; z-index:3; padding:0; font-weight:900; font-size:12px; font-style:italic; font-family:Georgia,serif; color:var(--action-blue); cursor:pointer;">i</button>
                 <span style="position:absolute; top:2px; right:2px; background:var(--ember); color:#fff; font-size:13px; font-weight:800; padding:2px 8px; border-radius:10px; border:2px solid var(--ink); box-shadow:0 2px 0 rgba(0,0,0,.25); z-index:3;">Lv ${rec ? rec.level : 1}</span>
               </div>
@@ -5765,9 +5962,10 @@ function renderTeamTab(){
           // of allIds above), so the tile's own class list no longer needs
           // to branch on it — kept simple rather than carrying dead logic.
           const isArmed = armed === rec.speciesId;
-          return `<div class="creature-tile ${isArmed?'armed':''}" data-species-id="${rec.speciesId}" onclick="handleRosterTap('${rec.speciesId}')">
+          return `<div class="creature-tile ${isArmed?'armed':''} ${rec.isShiny?'shiny-tile':''}" data-species-id="${rec.speciesId}" onclick="handleRosterTap('${rec.speciesId}')">${rec.isShiny?`<div class="shiny-sparkles"><i style="left:14%;top:22%;animation-delay:0s"></i><i style="left:74%;top:16%;animation-delay:.5s"></i><i style="left:56%;top:64%;animation-delay:1s"></i><i style="left:26%;top:70%;animation-delay:1.5s"></i></div>`:''}
             <div class="icon" style="position:relative; padding:16px 0 12px;">
               ${cardArt(sp.id, 68)}
+              ${rec.isShiny?`<span class="shiny-star">★</span>`:''}
               <button onclick="event.stopPropagation(); showEvopalStatsPopup('${sp.id}');" style="position:absolute; top:2px; left:2px; width:20px; height:20px; border-radius:50%; background:#fff; border:2px solid var(--ink); display:flex; align-items:center; justify-content:center; z-index:3; padding:0; font-weight:900; font-size:12px; font-style:italic; font-family:Georgia,serif; color:var(--action-blue); cursor:pointer;">i</button>
               <span style="position:absolute; top:2px; right:2px; background:var(--ember); color:#fff; font-size:13px; font-weight:800; padding:2px 8px; border-radius:10px; border:2px solid var(--ink); box-shadow:0 2px 0 rgba(0,0,0,.25); z-index:3;">Lv ${rec.level}</span>
             </div>
